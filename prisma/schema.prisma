@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserProfile {
+  id              Int             @id @default(autoincrement())
+  userId          String          @unique
+  name            String
+  email           String
+  diseases        String?
+  allergies       String?
+  createdAt       DateTime        @default(now())
+  
+  productSearches ProductSearch[] // <-- add this back-relation array field
+}
+
+model ProductSearch {
+  id                 String       @id @default(cuid())
+  userId             String
+  productName        String?
+  imageFrontUrl      String?
+  imageNutritionImage String?
+  aiData             Json
+  createdAt          DateTime     @default(now())
+
+  userProfile        UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+}
+
