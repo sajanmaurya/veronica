@@ -15,7 +15,7 @@ export const UserProfileProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem("safebite-profile");
+    const savedProfile = localStorage.getItem("veronica-profile");
     if (savedProfile) {
       try {
         setProfile(JSON.parse(savedProfile));

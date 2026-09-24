@@ -30,7 +30,7 @@ const UserProfile = () => {
         allergies,
       };
 
-      localStorage.setItem("safebite-profile", JSON.stringify(updatedProfile));
+      localStorage.setItem("veronica-profile", JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
       toast.success("Profile updated");
     } catch (error) {
