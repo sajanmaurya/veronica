@@ -10,7 +10,8 @@ const apiKey =
   process.env.GEMINI_KEY ||
   process.env.NEXT_PUBLIC_GEMINI_KEY;
 
-const MODEL_NAME = "gemini-3.6-flash";
+const MODEL_NAME = "gemini-3.8-flash";
+
 
 function cleanJson(text) {
   if (!text || typeof text !== "string") {
