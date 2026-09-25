@@ -12,7 +12,6 @@ const apiKey =
 
 const MODEL_NAME = "gemini-3.8-flash";
 
-
 function cleanJson(text) {
   if (!text || typeof text !== "string") {
     return null;
@@ -114,8 +113,6 @@ export default async function handler(req, res) {
     const model = genAI.getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
-        temperature: 0.2,
-        topP: 0.9,
         maxOutputTokens: 4096,
         responseMimeType: "application/json",
       },
@@ -194,18 +191,55 @@ Do not invent nutrition values that cannot be read
 from the image.
 `;
 
-    const result = await model.generateContent([
-      {
-        text: prompt,
-      },
-      {
-        inlineData: {
-          mimeType:
-            imageFile.mimetype || "image/jpeg",
-          data: imageBuffer.toString("base64"),
-        },
-      },
-    ]);
+    // Retry Gemini if the service temporarily returns 503
+    let result;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        result = await model.generateContent([
+          {
+            text: prompt,
+          },
+          {
+            inlineData: {
+              mimeType:
+                imageFile.mimetype || "image/jpeg",
+              data: imageBuffer.toString("base64"),
+            },
+          },
+        ]);
+
+        // Successful request
+        break;
+      } catch (error) {
+        const message = error?.message || "";
+
+        const isTemporaryError =
+          /503|service unavailable|high demand|temporarily/i.test(
+            message
+          );
+
+        if (!isTemporaryError || attempt === 3) {
+          throw error;
+        }
+
+        const delay = attempt * 2000;
+
+        console.log(
+          `Gemini temporarily unavailable. Retry ${attempt}/3 after ${delay}ms`
+        );
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, delay)
+        );
+      }
+    }
+
+    if (!result) {
+      throw new Error(
+        "Gemini did not return a response after retries."
+      );
+    }
 
     const text =
       result.response?.text?.() || "";
@@ -229,7 +263,6 @@ from the image.
       success: true,
       data,
     });
-
   } catch (error) {
     console.error(
       "Image analysis error:",
@@ -260,6 +293,18 @@ from the image.
         success: false,
         error:
           "The configured Gemini model is unavailable.",
+      });
+    }
+
+    if (
+      /503|service unavailable|high demand|temporarily/i.test(
+        message
+      )
+    ) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Gemini is temporarily overloaded. Please try again in a few seconds.",
       });
     }
 
