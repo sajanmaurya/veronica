@@ -1,57 +1,271 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+const apiKey =
+  process.env.GEMINI_KEY ||
+  process.env.NEXT_PUBLIC_GEMINI_KEY;
+
+const MODEL_NAME = "gemini-3.6-flash";
+
+function cleanJson(text) {
+  if (!text || typeof text !== "string") {
+    return null;
+  }
+
+  const cleaned = text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-  const { imageData } = req.body;
-
-  if (!imageData) {
-    return res.status(400).json({ error: "Image extracted text is required" });
+    return res.status(405).json({
+      success: false,
+      error: "Method not allowed",
+    });
   }
 
   try {
-    // Clean and format the ingredient list
-    console.log("Extracted Text for Analysis:", imageData);
-    const formattedIngredients = imageData
-      .replace(/\n|\r|\|/g, " ")
-      .replace(/Ingredients:/i, "")
-      .trim();
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: "Gemini API key is not configured.",
+      });
+    }
 
-    // Call OpenFoodFacts API to analyze ingredients
-    const response = await fetch(
-      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-        formattedIngredients
-      )}&json=true`
+    const formidable = (await import("formidable")).default;
+
+    const form = formidable({
+      multiples: false,
+      maxFileSize: 10 * 1024 * 1024,
+      filter: ({ mimetype }) =>
+        !!mimetype && mimetype.startsWith("image/"),
+    });
+
+    const [fields, files] = await form.parse(req);
+
+    const uploadedImage = files.image;
+
+    const imageFile = Array.isArray(uploadedImage)
+      ? uploadedImage[0]
+      : uploadedImage;
+
+    if (!imageFile) {
+      return res.status(400).json({
+        success: false,
+        error: "No image uploaded.",
+      });
+    }
+
+    const fs = await import("fs");
+
+    const imagePath =
+      imageFile.filepath || imageFile.path;
+
+    if (!imagePath || !fs.existsSync(imagePath)) {
+      return res.status(400).json({
+        success: false,
+        error: "Uploaded image is invalid.",
+      });
+    }
+
+    const imageBuffer = fs.readFileSync(imagePath);
+
+    let profile = {};
+
+    try {
+      const profileValue = Array.isArray(fields.profile)
+        ? fields.profile[0]
+        : fields.profile;
+
+      profile = profileValue
+        ? JSON.parse(profileValue)
+        : {};
+    } catch {
+      profile = {};
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.9,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const prompt = `
+You are a professional nutritionist and food safety expert.
+
+Analyze the food product shown in the uploaded image.
+
+Read the visible:
+- Product name
+- Ingredients
+- Nutrition information
+- Allergens
+- Additives
+- Preservatives
+- Artificial colors
+- Sugar
+- Sodium
+- Saturated fat
+- Trans fat
+
+Tasks:
+
+1. Give a health rating from 1 to 10.
+
+2. Identify concerning or potentially harmful ingredients.
+
+3. Consider:
+- Added sugar
+- Saturated fat
+- Trans fat
+- Sodium
+- Preservatives
+- Artificial colors
+- Allergens
+- Highly processed ingredients
+
+4. Give a concise overall health summary.
+
+5. State whether the product is more suitable for:
+- frequent consumption
+- occasional consumption
+- rare consumption
+
+6. If the user has relevant diseases or allergies,
+provide a personalized summary.
+
+User profile:
+
+${JSON.stringify({
+  diseases: profile?.diseases || null,
+  allergies: profile?.allergies || null,
+})}
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{
+  "rating": number,
+  "harmful_ingredients": [
+    {
+      "name": "Ingredient Name",
+      "impact": "Explanation"
+    }
+  ],
+  "summary": "Brief health summary",
+  "user_specific_summary": "Personalized summary or empty string"
+}
+
+Do not use markdown.
+
+Do not invent nutrition values that cannot be read
+from the image.
+`;
+
+    const result = await model.generateContent([
+      {
+        text: prompt,
+      },
+      {
+        inlineData: {
+          mimeType:
+            imageFile.mimetype || "image/jpeg",
+          data: imageBuffer.toString("base64"),
+        },
+      },
+    ]);
+
+    const text =
+      result.response?.text?.() || "";
+
+    console.log(
+      "Gemini image analysis:",
+      text
     );
 
-    const data = await response.json();
+    const data = cleanJson(text);
 
-    if (data.products && data.products.length > 0) {
-      const product = data.products[0];
-      const productInfo = {
-        product_name: product.product_name || "Unknown Product",
-        ingredients_text:
-          product.ingredients_text || "No ingredient list available",
-        health_rating: product.nutriscore_grade || "No rating available",
-        harmful_ingredients:
-          product.ingredients_analysis_tags?.filter(
-            (tag) => tag.includes("palm") || tag.includes("additive")
-          ) || [],
-        additives: product.additives_tags || [],
-        nutri_score: product.nutriscore_grade || "No Nutri-Score available",
-        product_category: product.categories_tags?.[0] || "Unknown Category",
-        barcode: product.code || "No barcode available",
-        packaging: product.packaging || "No packaging info available",
-        allergens: product.allergens || "No allergen info available",
-      };
-
-      return res.status(200).json({ success: true, product: productInfo });
-    } else {
-      return res
-        .status(404)
-        .json({ success: false, message: "No product found" });
+    if (!data) {
+      return res.status(502).json({
+        success: false,
+        error:
+          "Gemini returned an invalid response. Please try again.",
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+
   } catch (error) {
-    console.error("Error analyzing ingredients:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error(
+      "Image analysis error:",
+      error
+    );
+
+    const message =
+      error?.message || "";
+
+    if (
+      /429|quota|rate limit|billing/i.test(
+        message
+      )
+    ) {
+      return res.status(429).json({
+        success: false,
+        error:
+          "Gemini API quota has been reached. Please try again later.",
+      });
+    }
+
+    if (
+      /404|not found|not available/i.test(
+        message
+      )
+    ) {
+      return res.status(502).json({
+        success: false,
+        error:
+          "The configured Gemini model is unavailable.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error:
+        "Unable to analyze the image right now. Please try again.",
+    });
   }
 }
