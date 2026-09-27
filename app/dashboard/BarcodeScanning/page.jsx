@@ -38,29 +38,25 @@ const BarcodeScanning = () => {
         throw new Error("Camera access is not supported in this browser.");
       }
 
-      // Request permission first so camera labels are available when we
-      // choose the rear-facing camera on phones.
-      const permissionStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: "environment" } },
-      });
-      permissionStream.getTracks().forEach((track) => track.stop());
-
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      if (!devices.length) {
-        throw new Error("No camera was found on this device.");
-      }
-
-      const rearCamera =
-        devices.find((device) =>
-          /back|rear|environment|world|main/i.test(device.label || "")
-        ) || devices[devices.length - 1];
-
+      // Use the rear/environment camera with a higher capture resolution.
+      // decodeFromVideoDevice() only requests the camera by deviceId, which can
+      // leave Android Chrome on a low-resolution/wide rear camera stream.
+      // decodeFromConstraints() lets us request a barcode-friendly stream first.
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
 
-      const controls = await reader.decodeFromVideoDevice(
-        rearCamera.deviceId,
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: { exact: "environment" },
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+      };
+
+      const controls = await reader.decodeFromConstraints(
+        constraints,
         videoRef.current,
         (result, error) => {
           if (result && !scanLocked.current) {
@@ -73,23 +69,34 @@ const BarcodeScanning = () => {
       controlsRef.current = controls;
       setCameraReady(true);
 
+      // Android Chrome exposes camera focus capabilities through the
+      // MediaStreamTrack. Prefer continuous autofocus for close barcodes.
       const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
       const capabilities = track?.getCapabilities?.();
 
-      if (track?.applyConstraints && capabilities?.focusMode?.includes?.("continuous")) {
+      if (track?.applyConstraints && capabilities?.focusMode) {
         try {
-          await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-        } catch {}
+          if (Array.isArray(capabilities.focusMode) &&
+              capabilities.focusMode.includes("continuous")) {
+            await track.applyConstraints({
+              advanced: [{ focusMode: "continuous" }],
+            });
+          } else if (
+            Array.isArray(capabilities.focusMode) &&
+            capabilities.focusMode.includes("single-shot")
+          ) {
+            await track.applyConstraints({
+              advanced: [{ focusMode: "single-shot" }],
+            });
+          }
+        } catch (focusError) {
+          console.warn("Camera autofocus constraint was not applied:", focusError);
+        }
       }
 
-      if (track?.applyConstraints && capabilities?.zoom) {
-        try {
-          const min = Number(capabilities.zoom.min ?? 1);
-          const max = Number(capabilities.zoom.max ?? min);
-          const zoom = Math.min(Math.max(min, 1.15), max);
-          await track.applyConstraints({ advanced: [{ zoom }] });
-        } catch {}
-      }
+      // Do not force digital zoom: unnecessary zoom can make the barcode
+      // softer on some Android cameras. Let the phone's native autofocus
+      // choose the optical focus distance.
     } catch (error) {
       console.error("ZXing scanner startup failed:", error);
       stopScanner();
