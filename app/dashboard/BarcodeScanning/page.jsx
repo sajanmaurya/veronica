@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import { toast } from "react-toastify";
 import { chatSession, getGeminiFallbackResponse, isModelUnavailableError, isQuotaError, normalizeGeminiJson } from "../../utils/GeminiAiModal";
@@ -12,6 +12,9 @@ const BarcodeScanning = () => {
   const [data, setData] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiData, setAiData] = useState(null);
+  const [cameraError, setCameraError] = useState("");
+  const [stopStream, setStopStream] = useState(true);
+  const scanLocked = useRef(false);
 
   const { profile } = useUserProfile();
 
@@ -37,9 +40,17 @@ const BarcodeScanning = () => {
       return;
     }
 
+    if (scanLocked.current || loading) {
+      return;
+    }
+
+    scanLocked.current = true;
     console.log("Barcode Scanned:", barcode);
 
-    // Stop scanner
+    // Stop the camera stream before unmounting the scanner.
+    // This avoids the react-webcam freeze that can occur when the
+    // scanner component is removed immediately after a successful scan.
+    setStopStream(true);
     setScanning(false);
 
     // Store barcode
@@ -343,7 +354,10 @@ Return only the JSON object.
   // =====================================================
 
   const resetScan = () => {
+    scanLocked.current = false;
+    setStopStream(true);
     setScanning(false);
+    setCameraError("");
     setData("");
     setAiData(null);
 
@@ -369,9 +383,18 @@ Return only the JSON object.
           {/* START / STOP BUTTON */}
 
           <button
-            onClick={() =>
-              setScanning(!scanning)
-            }
+            onClick={() => {
+              setCameraError("");
+              if (scanning) {
+                setStopStream(true);
+                setScanning(false);
+                scanLocked.current = false;
+              } else {
+                scanLocked.current = false;
+                setStopStream(false);
+                setScanning(true);
+              }
+            }}
             disabled={loading}
             className="w-full bg-gray-200 h-20 text-gray-600 py-4 px-6 rounded-lg text-lg font-medium hover:scale-105 hover:shadow-md transition-all disabled:opacity-50"
           >
@@ -382,15 +405,46 @@ Return only the JSON object.
 
           {/* BARCODE CAMERA */}
 
-          {scanning && (
-            <div className="flex justify-center w-full">
+          {cameraError && (
+            <div className="w-full rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm leading-5 text-amber-800">
+              <p className="font-semibold">Camera could not start</p>
+              <p className="mt-1">{cameraError}</p>
+              <p className="mt-2 text-xs text-amber-700">
+                Allow camera access for Veronica in your browser, then press
+                “Start Scanning Barcode” again.
+              </p>
+            </div>
+          )}
 
+          {scanning && (
+            <div className="flex w-full justify-center overflow-hidden rounded-2xl border border-white/70 bg-black/10 p-2 shadow-lg">
               <BarcodeScannerComponent
                 onUpdate={handleScan}
+                onError={(error) => {
+                  console.error("Barcode scanner error:", error);
+                  if (error?.name === "NotAllowedError") {
+                    setCameraError("Camera permission was denied. Allow camera access in your browser settings.");
+                  } else if (error?.name === "NotFoundError") {
+                    setCameraError("No camera was found on this device.");
+                  } else if (error?.name === "NotReadableError") {
+                    setCameraError("The camera is already being used by another app or browser tab.");
+                  } else {
+                    setCameraError("Unable to access the camera. Check your browser camera permission and try again.");
+                  }
+                  setStopStream(true);
+                  setScanning(false);
+                }}
+                facingMode="environment"
+                videoConstraints={{
+                  facingMode: { ideal: "environment" },
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                }}
+                stopStream={stopStream}
                 width={550}
                 height={300}
+                delay={300}
               />
-
             </div>
           )}
 
@@ -409,9 +463,7 @@ Return only the JSON object.
             />
 
             <button
-              onClick={() =>
-                getResult(data)
-              }
+              onClick={() => getResult(data)}
               disabled={!data || loading}
               className="bg-green-600 text-white px-5 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
             >
