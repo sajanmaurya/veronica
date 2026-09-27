@@ -10,26 +10,46 @@ export const config = {
 };
 
 function getStorageConfig() {
-  const endpoint = process.env.AWS_ENDPOINT_URL_S3;
-  const bucket = process.env.NEON_STORAGE_BUCKET;
-  const region = process.env.AWS_REGION || "us-east-2";
+  const endpoint = process.env.AWS_ENDPOINT_URL_S3?.trim();
+  const bucket = process.env.NEON_STORAGE_BUCKET?.trim();
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const region = process.env.AWS_REGION?.trim() || "us-east-2";
 
-  if (!endpoint || !bucket) {
+  const missing = [];
+
+  if (!endpoint) missing.push("AWS_ENDPOINT_URL_S3");
+  if (!bucket) missing.push("NEON_STORAGE_BUCKET");
+  if (!accessKeyId) missing.push("AWS_ACCESS_KEY_ID");
+  if (!secretAccessKey) missing.push("AWS_SECRET_ACCESS_KEY");
+
+  if (missing.length) {
     throw new Error(
-      "Neon Object Storage is not configured. Set AWS_ENDPOINT_URL_S3 and NEON_STORAGE_BUCKET."
+      `Missing Neon Object Storage environment variable(s): ${missing.join(", ")}`
     );
   }
 
-  return { endpoint, bucket, region };
+  return {
+    endpoint,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    region,
+  };
 }
 
 function createStorageClient() {
-  const { endpoint, region } = getStorageConfig();
+  const { endpoint, region, accessKeyId, secretAccessKey } =
+    getStorageConfig();
 
   return new S3Client({
     endpoint,
     region,
     forcePathStyle: true,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
   });
 }
 
@@ -53,7 +73,6 @@ function parseImageData(imageData) {
     throw new Error("Image is empty.");
   }
 
-  // Keep individual history images small and protect the serverless route.
   if (buffer.length > 1.5 * 1024 * 1024) {
     throw new Error("Image is too large after compression.");
   }
@@ -79,12 +98,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "imageData is required" });
     }
 
+    const { bucket, endpoint } = getStorageConfig();
+    const { buffer, contentType } = parseImageData(imageData);
     const safeFolder =
       String(folder).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32) ||
       "history";
-
-    const { bucket, endpoint } = getStorageConfig();
-    const { buffer, contentType } = parseImageData(imageData);
     const extension = contentType === "image/webp" ? "webp" : "img";
     const key = `${safeFolder}/${randomUUID()}.${extension}`;
 
@@ -107,11 +125,16 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error("Failed to upload image to Neon Object Storage:", error);
 
+    const details = {
+      name: error?.name || "UnknownError",
+      message: error?.message || "Unknown storage error",
+      code: error?.code || null,
+      httpStatusCode: error?.$metadata?.httpStatusCode || null,
+    };
+
     return res.status(500).json({
       error: "Failed to upload image",
-      ...(process.env.NODE_ENV !== "production"
-        ? { details: error?.message }
-        : {}),
+      details,
     });
   }
 }
