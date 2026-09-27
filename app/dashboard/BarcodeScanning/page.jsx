@@ -174,7 +174,7 @@ const BarcodeScanning = () => {
         JSON.stringify(product)
       );
 
-      // Send product to Gemini
+      // Analyze the product with Groq
       await analyzeProduct(
         JSON.stringify(product),
         name,
