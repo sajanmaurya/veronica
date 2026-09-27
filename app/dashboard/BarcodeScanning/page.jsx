@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import { toast } from "react-toastify";
 import { chatSession, getGeminiFallbackResponse, isModelUnavailableError, isQuotaError, normalizeGeminiJson } from "../../utils/GeminiAiModal";
@@ -17,6 +17,19 @@ const BarcodeScanning = () => {
   const scanLocked = useRef(false);
 
   const { profile } = useUserProfile();
+
+  useEffect(() => {
+    // Start the camera immediately, like a payment/barcode scanner.
+    scanLocked.current = false;
+    setCameraError("");
+    setStopStream(false);
+    setScanning(true);
+
+    return () => {
+      setStopStream(true);
+      setScanning(false);
+    };
+  }, []);
 
   const [imageFrontUrl, setImageFrontUrl] = useState("");
   const [imageNutritionImage, setImageNutritionImage] = useState("");
@@ -380,28 +393,16 @@ Return only the JSON object.
       {!aiData && (
         <div className="flex flex-col items-center w-full max-w-xl gap-6">
 
-          {/* START / STOP BUTTON */}
+          {/* AUTO SCANNER */}
 
-          <button
-            onClick={() => {
-              setCameraError("");
-              if (scanning) {
-                setStopStream(true);
-                setScanning(false);
-                scanLocked.current = false;
-              } else {
-                scanLocked.current = false;
-                setStopStream(false);
-                setScanning(true);
-              }
-            }}
-            disabled={loading}
-            className="w-full bg-gray-200 h-20 text-gray-600 py-4 px-6 rounded-lg text-lg font-medium hover:scale-105 hover:shadow-md transition-all disabled:opacity-50"
-          >
-            {scanning
-              ? "Stop Scanning"
-              : "Start Scanning Barcode"}
-          </button>
+          <div className="w-full text-center">
+            <p className="text-2xl font-semibold tracking-[-.03em] text-slate-900">
+              Scan a barcode
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Point your camera at the barcode. Veronica will detect it automatically.
+            </p>
+          </div>
 
           {/* BARCODE CAMERA */}
 
@@ -417,8 +418,9 @@ Return only the JSON object.
           )}
 
           {scanning && (
-            <div className="flex w-full justify-center overflow-hidden rounded-2xl border border-white/70 bg-black/10 p-2 shadow-lg">
-              <BarcodeScannerComponent
+            <div className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black/10 p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
+              <div className="relative flex h-[320px] w-full items-center justify-center overflow-hidden rounded-2xl bg-black">
+                <BarcodeScannerComponent
                 onUpdate={handleScan}
                 onError={(error) => {
                   console.error("Barcode scanner error:", error);
@@ -443,8 +445,22 @@ Return only the JSON object.
                 stopStream={stopStream}
                 width={550}
                 height={300}
-                delay={300}
+                delay={180}
               />
+
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="relative h-40 w-[78%] max-w-sm rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(0,0,0,.28)]">
+                  <span className="absolute -left-0.5 -top-0.5 h-7 w-7 rounded-tl-xl border-l-4 border-t-4 border-emerald-300" />
+                  <span className="absolute -right-0.5 -top-0.5 h-7 w-7 rounded-tr-xl border-r-4 border-t-4 border-emerald-300" />
+                  <span className="absolute -bottom-0.5 -left-0.5 h-7 w-7 rounded-bl-xl border-b-4 border-l-4 border-emerald-300" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-br-xl border-b-4 border-r-4 border-emerald-300" />
+                  <span className="absolute left-3 right-3 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-emerald-300/90 shadow-[0_0_12px_rgba(110,231,183,.9)]" />
+                </div>
+              </div>
+
+              <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/45 px-4 py-2 text-xs font-medium text-white backdrop-blur-md">
+                Scanning automatically
+              </div>
             </div>
           )}
 
