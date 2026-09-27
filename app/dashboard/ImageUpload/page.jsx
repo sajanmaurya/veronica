@@ -119,6 +119,7 @@ const ImageUpload = () => {
         <div className="w-full max-w-4xl mt-10">
           <ProductSummery
             aiData={aiData}
+            productName={aiData.product_name || "Unknown product"}
             imageFrontUrl={preview}
           />
         </div>
