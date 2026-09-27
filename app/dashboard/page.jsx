@@ -24,19 +24,45 @@ export default function Dashboard() {
             fine print into clear nutrition and ingredient insights.
           </p>
 
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mt-9 grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
             <button
               onClick={() => router.push("/dashboard/ImageUpload")}
-              className="glass-button-primary min-w-[190px] px-8 py-4 text-base font-bold shadow-[0_12px_28px_rgba(8,121,95,.24)]"
+              className="group relative min-h-[82px] overflow-hidden rounded-2xl border-2 border-emerald-600 bg-gradient-to-br from-emerald-600 to-emerald-500 px-7 py-5 text-left text-white shadow-[0_16px_35px_rgba(8,121,95,.28)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(8,121,95,.34)] focus:outline-none focus:ring-4 focus:ring-emerald-300/50"
             >
-              Read the label
-              <span className="ml-2 text-lg">→</span>
+              <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/15 blur-2xl" />
+              <span className="relative flex items-center justify-between gap-4">
+                <span>
+                  <span className="block text-lg font-extrabold tracking-[-.02em] sm:text-xl">
+                    Read the label
+                  </span>
+                  <span className="mt-1 block text-xs font-medium text-emerald-50">
+                    Photograph nutrition & ingredients
+                  </span>
+                </span>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-xl font-bold ring-1 ring-white/30">
+                  →
+                </span>
+              </span>
             </button>
+
             <button
               onClick={() => router.push("/dashboard/BarcodeScanning")}
-              className="glass-button-secondary min-w-[190px] border-2 border-white/80 bg-white/40 px-8 py-4 text-base font-bold text-slate-800 shadow-[0_10px_24px_rgba(20,45,35,.08)] backdrop-blur-xl"
+              className="group relative min-h-[82px] overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-900 px-7 py-5 text-left text-white shadow-[0_16px_35px_rgba(15,23,42,.22)] transition duration-200 hover:-translate-y-1 hover:bg-slate-800 hover:shadow-[0_20px_42px_rgba(15,23,42,.28)] focus:outline-none focus:ring-4 focus:ring-slate-300/60"
             >
-              Scan barcode
+              <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+              <span className="relative flex items-center justify-between gap-4">
+                <span>
+                  <span className="block text-lg font-extrabold tracking-[-.02em] sm:text-xl">
+                    Scan barcode
+                  </span>
+                  <span className="mt-1 block text-xs font-medium text-slate-300">
+                    Point camera · Auto-detect
+                  </span>
+                </span>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 text-lg ring-1 ring-white/25">
+                  ▦
+                </span>
+              </span>
             </button>
           </div>
         </div>
