@@ -424,16 +424,14 @@ Return only the JSON object.
 
   const resetScan = () => {
     scanLocked.current = false;
-    setStopStream(true);
-    stopNativeCamera();
-    setScanning(false);
+    stopScanner();
     setCameraError("");
     setData("");
     setAiData(null);
-
     setProductName("");
     setImageFrontUrl("");
     setImageNutritionImage("");
+    startScanner();
   };
 
   // =====================================================
