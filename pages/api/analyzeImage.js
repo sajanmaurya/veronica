@@ -174,6 +174,7 @@ Return ONLY valid JSON.
 Use exactly this structure:
 
 {
+  "product_name": "Exact product/brand name visible on the package, or \"Unknown product\" if it cannot be read with confidence.",
   "rating": number,
   "harmful_ingredients": [
     {
