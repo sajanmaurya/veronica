@@ -61,7 +61,26 @@ async function uploadHistoryImage(imageData, folder) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "Failed to upload history image");
+    const diagnostic = data?.details
+      ? [
+          data.details.name,
+          data.details.code,
+          data.details.httpStatusCode
+            ? `HTTP ${data.details.httpStatusCode}`
+            : null,
+          data.details.message,
+        ]
+          .filter(Boolean)
+          .join(": ")
+      : null;
+
+    throw new Error(
+      diagnostic || data?.error || "Failed to upload history image"
+    );
+  }
+
+  if (!data?.url) {
+    throw new Error("Image upload succeeded but no image URL was returned.");
   }
 
   return data.url;
@@ -126,6 +145,7 @@ export default function ProductSummary({
 
         if (!cancelled) setError(null);
       } catch (err) {
+        console.error("Could not save analysis history:", err);
         if (!cancelled) {
           setError(err?.message || "Failed to save search");
         }
