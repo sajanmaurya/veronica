@@ -50,9 +50,10 @@ export default function Dashboard() {
 
             <button
               onClick={() => router.push("/dashboard/BarcodeScanning")}
-              className="group relative min-h-[82px] overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-900 px-7 py-5 text-left text-white shadow-[0_16px_35px_rgba(15,23,42,.22)] transition duration-200 hover:-translate-y-1 hover:bg-slate-800 hover:shadow-[0_20px_42px_rgba(15,23,42,.28)] focus:outline-none focus:ring-4 focus:ring-slate-300/60"
+              className="group relative min-h-[82px] overflow-hidden rounded-2xl border-2 border-emerald-300/80 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 px-7 py-5 text-left text-white shadow-[0_0_0_2px_rgba(110,231,183,.16),0_0_24px_rgba(16,185,129,.42),0_16px_35px_rgba(8,121,95,.28)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_0_0_3px_rgba(110,231,183,.2),0_0_34px_rgba(16,185,129,.62),0_20px_42px_rgba(8,121,95,.34)] focus:outline-none focus:ring-4 focus:ring-emerald-300/60"
             >
-              <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+              <span className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/25 blur-2xl" />
+              <span className="absolute inset-0 animate-pulse rounded-2xl bg-emerald-300/10" />
               <span className="relative flex items-center justify-between gap-4">
                 <span>
                   <span className="block text-lg font-extrabold tracking-[-.02em] sm:text-xl">
