@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
@@ -168,7 +169,20 @@ const BarcodeScanning = () => {
       const settings = track?.getSettings?.();
       console.log("Veronica active camera settings:", settings);
 
-      const reader = new BrowserMultiFormatReader();
+      // Veronica scans packaged-food product barcodes, so prioritize the
+      // formats actually used on retail packaging. The barcode in the
+      // screenshot is an EAN-13 (13 digits beginning with 890), and ZXing
+      // supports EAN-13/EAN-8/UPC-A/UPC-E directly.
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+      ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+
+      const reader = new BrowserMultiFormatReader(hints);
       readerRef.current = reader;
 
       const controls = await reader.decodeFromVideoElement(
