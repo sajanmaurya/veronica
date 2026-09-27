@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
-async function makePermanentImageUrl(sourceUrl) {
+async function makePermanentImageData(sourceUrl) {
   if (!sourceUrl) return null;
 
-  // Already a permanent/data URL.
-  if (sourceUrl.startsWith("data:") || sourceUrl.startsWith("https://")) {
+  if (sourceUrl.startsWith("data:")) {
     return sourceUrl;
   }
 
-  // Convert the temporary browser blob URL into a small, permanent data URL.
   if (!sourceUrl.startsWith("blob:")) {
     return null;
   }
@@ -39,12 +37,34 @@ async function makePermanentImageUrl(sourceUrl) {
     context.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
 
-    // WebP keeps the database payload much smaller than the original upload.
     return canvas.toDataURL("image/webp", 0.78);
   } catch (error) {
-    console.error("Could not create permanent history image:", error);
+    console.error("Could not prepare history image:", error);
     return null;
   }
+}
+
+async function uploadHistoryImage(imageData, folder) {
+  if (!imageData) return null;
+
+  // Existing HTTPS images are already permanent.
+  if (imageData.startsWith("https://")) {
+    return imageData;
+  }
+
+  const response = await fetch("/api/storage/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageData, folder }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to upload history image");
+  }
+
+  return data.url;
 }
 
 export default function ProductSummary({
@@ -63,10 +83,17 @@ export default function ProductSummary({
       if (!user || !aiData) return;
 
       try {
-        const permanentFrontUrl = await makePermanentImageUrl(imageFrontUrl);
-        const permanentNutritionUrl = await makePermanentImageUrl(
+        const frontImageData = await makePermanentImageData(imageFrontUrl);
+        const nutritionImageData = await makePermanentImageData(
           imageNutritionImage
         );
+
+        if (cancelled) return;
+
+        const [permanentFrontUrl, permanentNutritionUrl] = await Promise.all([
+          uploadHistoryImage(frontImageData, "history-front"),
+          uploadHistoryImage(nutritionImageData, "history-label"),
+        ]);
 
         if (cancelled) return;
 
