@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import BarcodeScannerComponent from "react-qr-barcode-scanner";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "react-toastify";
 import { chatSession, getGeminiFallbackResponse, isModelUnavailableError, isQuotaError, normalizeGeminiJson } from "../../utils/GeminiAiModal";
 import ProductSummery from "@/app/_components/ProductSummery";
@@ -13,170 +13,101 @@ const BarcodeScanning = () => {
   const [loading, setLoading] = useState(false);
   const [aiData, setAiData] = useState(null);
   const [cameraError, setCameraError] = useState("");
-  const [useLibraryFallback, setUseLibraryFallback] = useState(false);
-  const [stopStream, setStopStream] = useState(true);
+  const [cameraReady, setCameraReady] = useState(false);
   const scanLocked = useRef(false);
-  const nativeVideoRef = useRef(null);
-  const nativeStreamRef = useRef(null);
-  const detectorTimerRef = useRef(null);
-  const nativeDetectorActive = useRef(false);
+  const readerRef = useRef(null);
+  const controlsRef = useRef(null);
+  const videoRef = useRef(null);
 
   const { profile } = useUserProfile();
 
-  useEffect(() => {
-    // Start immediately, like a payment/barcode scanner.
-    scanLocked.current = false;
+  const stopScanner = () => {
+    try { controlsRef.current?.stop?.(); } catch {}
+    controlsRef.current = null;
+    try { readerRef.current?.reset?.(); } catch {}
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
+  };
+
+  const startScanner = async () => {
+    if (scanLocked.current) return;
     setCameraError("");
-    setUseLibraryFallback(false);
     setScanning(true);
 
-    return () => {
-      nativeDetectorActive.current = false;
-      if (detectorTimerRef.current) clearTimeout(detectorTimerRef.current);
-      nativeStreamRef.current?.getTracks?.().forEach((track) => track.stop());
-      nativeStreamRef.current = null;
-    };
-  }, []);
-
-  const stopNativeCamera = () => {
-    nativeDetectorActive.current = false;
-    if (detectorTimerRef.current) {
-      clearTimeout(detectorTimerRef.current);
-      detectorTimerRef.current = null;
-    }
-    nativeStreamRef.current?.getTracks?.().forEach((track) => track.stop());
-    nativeStreamRef.current = null;
-  };
-
-  const startNativeScanner = async () => {
     try {
-      setCameraError("");
-
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera API is not supported in this browser.");
+        throw new Error("Camera access is not supported in this browser.");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Request permission first so camera labels are available when we
+      // choose the rear-facing camera on phones.
+      const permissionStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+        video: { facingMode: { ideal: "environment" } },
       });
+      permissionStream.getTracks().forEach((track) => track.stop());
 
-      nativeStreamRef.current = stream;
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      if (!devices.length) {
+        throw new Error("No camera was found on this device.");
+      }
 
-      const track = stream.getVideoTracks()[0];
+      const rearCamera =
+        devices.find((device) =>
+          /back|rear|environment|world|main/i.test(device.label || "")
+        ) || devices[devices.length - 1];
+
+      const reader = new BrowserMultiFormatReader();
+      readerRef.current = reader;
+
+      const controls = await reader.decodeFromVideoDevice(
+        rearCamera.deviceId,
+        videoRef.current,
+        (result, error) => {
+          if (result && !scanLocked.current) {
+            const value = String(result.getText?.() || "").trim();
+            if (value) handleScan(value);
+          }
+        }
+      );
+
+      controlsRef.current = controls;
+      setCameraReady(true);
+
+      const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
       const capabilities = track?.getCapabilities?.();
 
-      // Apply focus only after the camera is live. Do not put focusMode
-      // in getUserMedia's initial constraints because some Android
-      // camera drivers handle that constraint poorly.
       if (track?.applyConstraints && capabilities?.focusMode?.includes?.("continuous")) {
         try {
-          await track.applyConstraints({
-            advanced: [{ focusMode: "continuous" }],
-          });
-        } catch (focusError) {
-          console.debug("Continuous autofocus unavailable:", focusError);
-        }
+          await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+        } catch {}
       }
 
-      // A modest optical/digital zoom can make a product barcode large
-      // enough for reliable decoding when the device exposes zoom.
       if (track?.applyConstraints && capabilities?.zoom) {
         try {
-          const zoom = Math.min(
-            Math.max(capabilities.zoom.min || 1, 1.15),
-            capabilities.zoom.max || 1.15
-          );
-          await track.applyConstraints({
-            advanced: [{ zoom }],
-          });
-        } catch (zoomError) {
-          console.debug("Camera zoom unavailable:", zoomError);
-        }
+          const min = Number(capabilities.zoom.min ?? 1);
+          const max = Number(capabilities.zoom.max ?? min);
+          const zoom = Math.min(Math.max(min, 1.15), max);
+          await track.applyConstraints({ advanced: [{ zoom }] });
+        } catch {}
       }
-
-      const video = nativeVideoRef.current;
-      if (!video) return;
-
-      video.srcObject = stream;
-      await video.play();
-
-      if (!("BarcodeDetector" in window)) {
-        // Native detection is unavailable in this browser. Stop the native
-        // stream before handing camera ownership to the ZXing fallback.
-        console.log("Native BarcodeDetector unavailable; using ZXing fallback.");
-        stopNativeCamera();
-        setUseLibraryFallback(true);
-        return;
-      }
-
-      const supported = await window.BarcodeDetector.getSupportedFormats();
-      const preferredFormats = [
-        "ean_13",
-        "ean_8",
-        "upc_a",
-        "upc_e",
-        "code_128",
-        "code_39",
-        "itf",
-        "codabar",
-        "qr_code",
-      ];
-      const formats = preferredFormats.filter((format) => supported.includes(format));
-
-      if (!formats.length) return;
-
-      const detector = new window.BarcodeDetector({ formats });
-      nativeDetectorActive.current = true;
-
-      const detect = async () => {
-        if (!nativeDetectorActive.current || !nativeVideoRef.current) return;
-
-        try {
-          const results = await detector.detect(nativeVideoRef.current);
-
-          if (results?.length) {
-            const value = String(results[0].rawValue || "").trim();
-            if (value && !scanLocked.current) {
-              handleScan(null, { text: value });
-              return;
-            }
-          }
-        } catch (error) {
-          console.debug("Barcode detection frame skipped:", error);
-        }
-
-        detectorTimerRef.current = setTimeout(detect, 100);
-      };
-
-      detect();
     } catch (error) {
-      console.error("Native camera error:", error);
+      console.error("ZXing scanner startup failed:", error);
+      stopScanner();
+      setScanning(false);
       setCameraError(
         error?.name === "NotAllowedError"
-          ? "Camera permission was denied. Allow camera access and reload Veronica."
-          : error?.name === "NotFoundError"
-            ? "No camera was found on this device."
-            : "Unable to start the camera. Please check browser camera permissions."
+          ? "Camera permission was denied. Allow camera access for Veronica and try again."
+          : error?.message || "Unable to start the barcode scanner."
       );
-      setScanning(false);
     }
   };
 
   useEffect(() => {
-    if (!scanning) {
-      stopNativeCamera();
-      return;
-    }
-
-    startNativeScanner();
-
-    return () => stopNativeCamera();
-  }, [scanning]);
+    scanLocked.current = false;
+    startScanner();
+    return () => stopScanner();
+  }, []);
 
   const [imageFrontUrl, setImageFrontUrl] = useState("");
   const [imageNutritionImage, setImageNutritionImage] = useState("");
@@ -186,38 +117,16 @@ const BarcodeScanning = () => {
   // BARCODE SCANNER
   // =====================================================
 
-  const handleScan = (err, result) => {
-    // No barcode detected is normal.
-    // Do not show it as an application error.
-
-    if (!result || !result.text) {
-      return;
-    }
-
-    const barcode = String(result.text).trim();
-
-    if (!barcode) {
-      return;
-    }
-
-    if (scanLocked.current || loading) {
-      return;
-    }
+  const handleScan = (barcode) => {
+    const cleanBarcode = String(barcode || "").trim();
+    if (!cleanBarcode || scanLocked.current || loading) return;
 
     scanLocked.current = true;
-    console.log("Barcode Scanned:", barcode);
-
-    // Stop the camera stream before unmounting the scanner.
-    // This avoids the react-webcam freeze that can occur when the
-    // scanner component is removed immediately after a successful scan.
-    setStopStream(true);
+    setData(cleanBarcode);
+    stopScanner();
     setScanning(false);
 
-    // Store barcode
-    setData(barcode);
-
-    // Get product
-    getResult(barcode);
+    getResult(cleanBarcode);
   };
 
   // =====================================================
@@ -515,16 +424,14 @@ Return only the JSON object.
 
   const resetScan = () => {
     scanLocked.current = false;
-    setStopStream(true);
-    stopNativeCamera();
-    setScanning(false);
+    stopScanner();
     setCameraError("");
     setData("");
     setAiData(null);
-
     setProductName("");
     setImageFrontUrl("");
     setImageNutritionImage("");
+    startScanner();
   };
 
   // =====================================================
@@ -567,79 +474,62 @@ Return only the JSON object.
 
           {scanning && (
             <div className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
-              <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-black">
-                {!useLibraryFallback && (
-                  <video
-                    ref={nativeVideoRef}
-                    muted
-                    playsInline
-                    autoPlay
-                    className="h-full w-full object-contain"
-                  />
-                )}
-
-                {useLibraryFallback && (
-                  <div className="absolute inset-0">
-                    <BarcodeScannerComponent
-                      onUpdate={handleScan}
-                      onError={(error) => {
-                        console.error("Barcode scanner error:", error);
-                        setCameraError("Unable to decode the barcode with this browser. Try Chrome on Android or enter the barcode manually.");
-                      }}
-                      videoConstraints={{
-                        facingMode: { ideal: "environment" },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                      }}
-                      stopStream={stopStream}
-                      width="100%"
-                      height={360}
-                      delay={150}
-                    />
-                  </div>
-                )}
+              <div className="relative h-[380px] w-full overflow-hidden rounded-2xl bg-black">
+                <video
+                  ref={videoRef}
+                  muted
+                  playsInline
+                  autoPlay
+                  className="h-full w-full object-cover"
+                />
 
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="relative h-36 w-[82%] max-w-md rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(0,0,0,.28)]">
-                    <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-emerald-300" />
-                    <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-emerald-300" />
-                    <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-emerald-300" />
-                    <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-emerald-300" />
-                    <span className="absolute left-4 right-4 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-emerald-300/90 shadow-[0_0_14px_rgba(110,231,183,.95)]" />
+                  <div className="relative h-40 w-[88%] max-w-lg rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(0,0,0,.32)]">
+                    <span className="absolute -left-0.5 -top-0.5 h-9 w-9 rounded-tl-xl border-l-4 border-t-4 border-emerald-300" />
+                    <span className="absolute -right-0.5 -top-0.5 h-9 w-9 rounded-tr-xl border-r-4 border-t-4 border-emerald-300" />
+                    <span className="absolute -bottom-0.5 -left-0.5 h-9 w-9 rounded-bl-xl border-b-4 border-l-4 border-emerald-300" />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-9 w-9 rounded-br-xl border-b-4 border-r-4 border-emerald-300" />
+                    <span className="absolute left-5 right-5 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,.95)]" />
                   </div>
                 </div>
 
-                <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/55 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
-                  Point the barcode inside the frame
+                <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/60 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
+                  Align the product barcode inside the frame
                 </div>
               </div>
             </div>
           )}
 
+          {!scanning && !aiData && (
+            <button
+              onClick={() => {
+                scanLocked.current = false;
+                startScanner();
+              }}
+              disabled={loading}
+              className="w-full rounded-2xl bg-emerald-600 px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              Scan with camera
+            </button>
+          )}
+
           {/* MANUAL BARCODE INPUT */}
-
           <div className="w-full flex gap-2">
-
             <input
               type="text"
+              inputMode="numeric"
               value={data}
-              onChange={(e) =>
-                setData(e.target.value)
-              }
+              onChange={(e) => setData(e.target.value.replace(/[^0-9A-Za-z_-]/g, ""))}
               placeholder="Enter barcode manually"
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+              className="flex-1 rounded-xl border border-gray-300 bg-white/80 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"
             />
-
             <button
-              onClick={() => getResult(data)}
+              onClick={() => handleScan(data)}
               disabled={!data || loading}
-              className="bg-green-600 text-white px-5 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+              className="rounded-xl bg-emerald-600 px-5 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {loading
-                ? "Searching..."
-                : "Search"}
+              {loading ? "Searching..." : "Search"}
             </button>
-
           </div>
 
           {/* SCANNED CODE */}
