@@ -5,42 +5,40 @@ import { usePathname } from "next/navigation";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 const links = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/UserProfile", label: "Profile" },
-  { href: "/PreviousSearches", label: "History" },
+  { href: "/dashboard", label: "Home", icon: "⌂" },
+  { href: "/dashboard/ImageUpload", label: "Analyze label", icon: "⌕" },
+  { href: "/dashboard/BarcodeScanning", label: "Scan barcode", icon: "◫" },
+  { href: "/PreviousSearches", label: "Your activity", icon: "◷" },
+  { href: "/UserProfile", label: "Profile", icon: "◌" },
 ];
 
 export default function Header() {
   const pathname = usePathname();
-
   return (
-    <header className="sticky top-0 z-40 px-3 py-3 sm:px-6">
-      <div className="glass-surface mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-[1.65rem] px-3 py-2 sm:px-4">
-        <Link href="/dashboard" className="flex items-center gap-2.5 rounded-xl px-1.5 py-1 transition hover:opacity-80" aria-label="Veronica dashboard">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-400 via-lime-400 to-emerald-600 text-lg font-black text-white shadow-lg shadow-emerald-900/20">V</span>
-          <span className="hidden text-base font-bold tracking-[.13em] text-slate-800 sm:block">VERONICA</span>
+    <>
+      <aside className="glass-surface fixed inset-y-6 left-6 z-40 hidden w-[18rem] flex-col rounded-[2rem] p-5 lg:flex">
+        <Link href="/dashboard" className="mb-10 flex items-center gap-3 px-2">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-300 via-lime-400 to-emerald-600 text-xl font-black text-white shadow-lg">V</span>
+          <span className="text-xl font-semibold tracking-[-.04em] text-white drop-shadow">Veronica</span>
         </Link>
-
-        <nav aria-label="Primary navigation" className="glass-surface flex items-center gap-1 rounded-full p-1">
+        <nav className="space-y-1" aria-label="Primary navigation">
           {links.map((link) => {
             const active = pathname === link.href;
-            return (
-              <Link key={link.href} href={link.href} className={`rounded-full px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm ${active ? "bg-emerald-700 text-white shadow-sm shadow-emerald-900/20" : "text-slate-600 hover:bg-white/70 hover:text-emerald-800"}`}>
-                {link.label}
-              </Link>
-            );
+            return <Link key={link.href} href={link.href} className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${active ? "bg-white/25 text-white shadow-sm ring-1 ring-white/25" : "text-white/80 hover:bg-white/15 hover:text-white"}`}><span className="w-5 text-lg">{link.icon}</span>{link.label}</Link>;
           })}
         </nav>
-
-        <SignedOut>
-          <SignInButton mode="modal">
-            <button className="glass-button-primary px-3 py-2 text-xs sm:px-4 sm:text-sm">Log in</button>
-          </SignInButton>
-        </SignedOut>
-        <SignedIn>
-          <div className="glass-surface rounded-full p-1"><UserButton afterSignOutUrl="/" /></div>
-        </SignedIn>
-      </div>
-    </header>
+        <div className="mt-auto flex items-center justify-between border-t border-white/20 pt-5">
+          <span className="text-xs text-white/65">Personal nutrition AI</span>
+          <SignedOut><SignInButton mode="modal"><button className="rounded-xl bg-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/30">Log in</button></SignInButton></SignedOut>
+          <SignedIn><UserButton afterSignOutUrl="/" /></SignedIn>
+        </div>
+      </aside>
+      <header className="sticky top-0 z-40 px-3 py-3 lg:hidden">
+        <div className="glass-surface flex items-center justify-between rounded-2xl px-3 py-2">
+          <Link href="/dashboard" className="flex items-center gap-2 text-sm font-bold text-slate-800"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-300 to-emerald-600 text-white">V</span> Veronica</Link>
+          <nav className="flex gap-1">{links.slice(0, 3).map((link) => <Link key={link.href} href={link.href} className={`rounded-xl px-2 py-2 text-xs ${pathname === link.href ? "bg-white/40 text-slate-900" : "text-slate-700"}`}>{link.icon}</Link>)}</nav>
+        </div>
+      </header>
+    </>
   );
 }
