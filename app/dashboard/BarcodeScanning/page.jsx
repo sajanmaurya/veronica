@@ -13,6 +13,7 @@ const BarcodeScanning = () => {
   const [loading, setLoading] = useState(false);
   const [aiData, setAiData] = useState(null);
   const [cameraError, setCameraError] = useState("");
+  const [useLibraryFallback, setUseLibraryFallback] = useState(false);
   const [stopStream, setStopStream] = useState(true);
   const scanLocked = useRef(false);
   const nativeVideoRef = useRef(null);
@@ -26,6 +27,7 @@ const BarcodeScanning = () => {
     // Start immediately, like a payment/barcode scanner.
     scanLocked.current = false;
     setCameraError("");
+    setUseLibraryFallback(false);
     setScanning(true);
 
     return () => {
@@ -104,8 +106,11 @@ const BarcodeScanning = () => {
       await video.play();
 
       if (!("BarcodeDetector" in window)) {
-        // Keep the existing ZXing scanner as a browser fallback.
+        // Native detection is unavailable in this browser. Stop the native
+        // stream before handing camera ownership to the ZXing fallback.
         console.log("Native BarcodeDetector unavailable; using ZXing fallback.");
+        stopNativeCamera();
+        setUseLibraryFallback(true);
         return;
       }
 
@@ -563,17 +568,17 @@ Return only the JSON object.
           {scanning && (
             <div className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
               <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-black">
-                <video
-                  ref={nativeVideoRef}
-                  muted
-                  playsInline
-                  autoPlay
-                  className="h-full w-full object-contain"
-                />
+                {!useLibraryFallback && (
+                  <video
+                    ref={nativeVideoRef}
+                    muted
+                    playsInline
+                    autoPlay
+                    className="h-full w-full object-contain"
+                  />
+                )}
 
-                {/* ZXing fallback is mounted only when the native detector
-                    is unavailable. It uses the same camera stream. */}
-                {!("BarcodeDetector" in (typeof window !== "undefined" ? window : {})) && (
+                {useLibraryFallback && (
                   <div className="absolute inset-0">
                     <BarcodeScannerComponent
                       onUpdate={handleScan}
