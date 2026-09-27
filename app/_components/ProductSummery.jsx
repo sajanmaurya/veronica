@@ -163,6 +163,7 @@ export default function ProductSummary({
 
   const rating = Number(aiData.rating) || 0;
   const nutrition = aiData.nutrition || {};
+  const nutritionValidation = aiData.nutrition_validation || {};
 
   const nutritionItems = [
     ["Calories", nutrition.calories, "kcal"],
@@ -236,12 +237,31 @@ export default function ProductSummary({
                       : "Values shown only when readable from the label."}
                   </p>
                 </div>
-                {nutrition.servings_per_container != null && (
-                  <p className="text-xs font-medium text-slate-500">
-                    {nutrition.servings_per_container} servings/package
-                  </p>
-                )}
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  {nutrition.servings_per_container != null && (
+                    <p className="text-xs font-medium text-slate-500">
+                      {nutrition.servings_per_container} servings/package
+                    </p>
+                  )}
+                  {nutritionValidation.status && (
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${nutritionValidation.status === "verified" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
+                    >
+                      {nutritionValidation.status === "verified"
+                        ? "Label data checked"
+                        : "Needs label verification"}
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {nutritionValidation.message && (
+                <p
+                  className={`mt-3 rounded-xl px-4 py-3 text-xs leading-5 ${nutritionValidation.status === "verified" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
+                >
+                  {nutritionValidation.message}
+                </p>
+              )}
 
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {nutritionItems.map(([label, value, unit]) => (
