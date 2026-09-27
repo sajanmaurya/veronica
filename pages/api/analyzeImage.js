@@ -72,6 +72,10 @@ const foodAnalysisSchema = {
         "sodium_mg",
       ],
     },
+    ingredients: {
+      type: "array",
+      items: { type: "string" },
+    },
     major_ingredients: {
       type: "array",
       items: {
@@ -108,6 +112,7 @@ const foodAnalysisSchema = {
     "product_name",
     "rating",
     "nutrition",
+    "ingredients",
     "major_ingredients",
     "harmful_ingredients",
     "summary",
@@ -192,7 +197,8 @@ Analyze the food product shown in the uploaded image.
 
 Read only information that is actually visible in the image. Carefully inspect:
 - Product name
-- Ingredients
+- The complete visible ingredient list, in the order shown
+- Major ingredients worth highlighting
 - Nutrition Facts
 - Serving size
 - Calories
@@ -226,14 +232,18 @@ Tasks:
 - Allergens
 - Highly processed ingredients
 
-4. Give a concise overall health summary.
+4. Give a concise overall health summary in 2-3 sentences. Do not write a long paragraph.
 
-5. State whether the product is more suitable for:
+5. Extract the visible ingredient list into "ingredients". Preserve the ingredient names as written, in order. Do not invent ingredients.
+
+6. Select the most important ingredients to highlight in "major_ingredients". Use the visible ingredient list as the source.
+
+7. State whether the product is more suitable for:
 - frequent consumption
 - occasional consumption
 - rare consumption
 
-6. If the user has relevant diseases or allergies, provide a personalized summary.
+8. If the user has relevant diseases or allergies, provide a personalized summary.
 
 User profile:
 ${JSON.stringify({
@@ -248,6 +258,7 @@ IMPORTANT DATA RULES:
 - Do NOT estimate or guess nutrition numbers.
 - If a nutrition value cannot be read confidently, return null.
 - If the package has multiple nutrition panels, use the panel that is clearly associated with the product.
+- "ingredients" should contain only ingredients that can be read from the image.
 - For major ingredients, only provide percentage when the percentage is explicitly visible.
 - Only provide amount_g_per_serving when it is explicitly stated or can be directly calculated from a visible percentage and serving size.
 - Never invent ingredient quantities.
