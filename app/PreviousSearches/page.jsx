@@ -15,9 +15,35 @@ function formatDate(value) {
 }
 
 function getRatingClass(rating) {
-  if (rating >= 7) return "bg-emerald-100 text-emerald-700";
-  if (rating >= 4) return "bg-amber-100 text-amber-700";
-  return "bg-rose-100 text-rose-700";
+  if (rating >= 7) return "bg-emerald-50/75 text-emerald-700 ring-emerald-200/60";
+  if (rating >= 4) return "bg-amber-50/75 text-amber-700 ring-amber-200/60";
+  return "bg-rose-50/75 text-rose-700 ring-rose-200/60";
+}
+
+function HistoryImage({ src, name }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center rounded-[1.5rem] bg-white/25 text-center ring-1 ring-inset ring-white/45">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/45 text-xl shadow-sm">
+          🍽️
+        </div>
+        <span className="text-xs font-medium text-slate-400">
+          Image unavailable
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      onError={() => setFailed(true)}
+      className="h-full w-full object-contain drop-shadow-[0_12px_18px_rgba(15,23,42,.10)] transition duration-500 group-hover:scale-[1.035]"
+    />
+  );
 }
 
 export default function PreviousSearchesPage() {
@@ -32,9 +58,7 @@ export default function PreviousSearchesPage() {
         const res = await fetch("/api/previousSearches/products");
         const data = await res.json();
 
-        if (active) {
-          setSearches(Array.isArray(data) ? data : []);
-        }
+        if (active) setSearches(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching previous searches:", error);
         if (active) setSearches([]);
@@ -51,7 +75,7 @@ export default function PreviousSearchesPage() {
   }, []);
 
   const visibleSearches = useMemo(() => {
-    // Keep the newest record when the same analysis was accidentally saved twice.
+    // Hide exact accidental duplicates while preserving separate analyses.
     const seen = new Set();
 
     return searches.filter((search) => {
@@ -69,9 +93,9 @@ export default function PreviousSearchesPage() {
 
   if (loading) {
     return (
-      <main className="app-canvas min-h-[70vh] px-5 py-10">
+      <main className="app-canvas">
         <div className="mx-auto max-w-6xl">
-          <div className="glass-panel p-8 text-center text-slate-500">
+          <div className="glass-panel p-10 text-center text-sm text-slate-500">
             Loading your history...
           </div>
         </div>
@@ -80,32 +104,44 @@ export default function PreviousSearchesPage() {
   }
 
   return (
-    <main className="app-canvas min-h-[70vh] px-5 py-8 sm:px-8">
+    <main className="app-canvas px-4 pb-16 pt-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8">
-          <p className="eyebrow">Your activity</p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        {/* Glass header */}
+        <section className="glass-panel relative mb-7 overflow-hidden px-5 py-6 sm:px-7">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-white/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 left-1/3 h-40 w-40 rounded-full bg-emerald-200/15 blur-3xl" />
+
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold tracking-[-.04em] text-slate-900 sm:text-4xl">
+              <span className="eyebrow">Your activity</span>
+              <h1 className="mt-3 text-3xl font-semibold tracking-[-.045em] text-slate-900 sm:text-4xl">
                 Analysis history
               </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Products you have analyzed with Veronica.
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                A glass archive of the food products you have analyzed with
+                Veronica.
               </p>
             </div>
 
-            {searches.length > 0 && (
-              <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm ring-1 ring-black/5">
-                {visibleSearches.length}{" "}
-                {visibleSearches.length === 1 ? "analysis" : "analyses"}
+            <div className="glass-surface flex w-fit items-center gap-3 rounded-full px-4 py-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/10 text-sm">
+                ✦
               </span>
-            )}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">
+                  Analyses
+                </p>
+                <p className="text-sm font-semibold text-slate-800">
+                  {visibleSearches.length}
+                </p>
+              </div>
+            </div>
           </div>
-        </header>
+        </section>
 
         {visibleSearches.length === 0 ? (
-          <div className="glass-panel flex min-h-72 flex-col items-center justify-center p-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/70 text-2xl shadow-sm">
+          <div className="glass-panel flex min-h-80 flex-col items-center justify-center p-8 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-white/40 text-2xl shadow-sm ring-1 ring-white/60">
               🔎
             </div>
             <h2 className="text-xl font-semibold text-slate-800">
@@ -117,7 +153,7 @@ export default function PreviousSearchesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {visibleSearches.map((search) => {
               const rating = Number(search.aiData?.rating) || 0;
               const image =
@@ -127,23 +163,19 @@ export default function PreviousSearchesPage() {
               return (
                 <article
                   key={search.id}
-                  className="group overflow-hidden rounded-3xl border border-white/70 bg-white/75 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.13)]"
+                  className="group glass-surface overflow-hidden rounded-[2rem] transition duration-300 hover:-translate-y-1 hover:bg-white/35 hover:shadow-[0_24px_60px_rgba(20,45,35,.16)]"
                 >
-                  <div className="relative flex h-56 items-center justify-center overflow-hidden bg-white/60 p-5">
-                    {image ? (
-                      <img
-                        src={image}
-                        alt={name}
-                        className="h-full w-full object-contain transition duration-500 group-hover:scale-[1.03]"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center rounded-2xl bg-slate-100 text-sm font-medium text-slate-400">
-                        No image available
-                      </div>
-                    )}
+                  {/* Image glass chamber */}
+                  <div className="relative m-2 h-64 overflow-hidden rounded-[1.55rem] bg-white/18 p-5 ring-1 ring-inset ring-white/55">
+                    <div className="pointer-events-none absolute -left-10 -top-10 h-32 w-32 rounded-full bg-white/35 blur-2xl" />
+                    <div className="pointer-events-none absolute -bottom-12 -right-8 h-36 w-36 rounded-full bg-emerald-100/15 blur-3xl" />
+
+                    <div className="relative h-full w-full">
+                      <HistoryImage src={image} name={name} />
+                    </div>
 
                     <div
-                      className={`absolute right-4 top-4 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${getRatingClass(
+                      className={`absolute right-3 top-3 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm ring-1 backdrop-blur-xl ${getRatingClass(
                         rating
                       )}`}
                     >
@@ -151,18 +183,23 @@ export default function PreviousSearchesPage() {
                     </div>
                   </div>
 
-                  <div className="p-5">
+                  {/* Product information */}
+                  <div className="px-5 pb-5 pt-3">
                     <h2
-                      className="min-h-[3.25rem] text-lg font-semibold leading-6 tracking-[-.02em] text-slate-900"
+                      className="min-h-[3.4rem] text-lg font-semibold leading-6 tracking-[-.025em] text-slate-900"
                       title={name}
                     >
                       {name}
                     </h2>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-200/70 pt-4">
-                      <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                        Analyzed
-                      </span>
+                    <div className="mt-4 flex items-center justify-between border-t border-white/55 pt-4">
+                      <div className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
+                        <span className="text-[10px] font-bold uppercase tracking-[.15em] text-slate-400">
+                          Analyzed
+                        </span>
+                      </div>
+
                       <time
                         dateTime={search.createdAt}
                         className="text-xs font-medium text-slate-500"
