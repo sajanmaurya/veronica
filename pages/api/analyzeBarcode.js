@@ -123,10 +123,23 @@ ${JSON.stringify({
 
     const data = JSON.parse(text);
 
+    // Open Food Facts already provides the ingredient list for barcode
+    // products. Keep that source data in the final response instead of relying
+    // on the AI to reproduce it.
+    const sourceIngredients = String(product.ingredients || "").trim();
+    const ingredients =
+      sourceIngredients && sourceIngredients.toLowerCase() !== "unknown"
+        ? sourceIngredients
+            .split(/\s*,\s*/)
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [];
+
     return res.status(200).json({
       success: true,
       data: {
         ...data,
+        ingredients,
         rating: cleanRating(data.rating),
       },
     });
