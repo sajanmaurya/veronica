@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
           >
             <Header />
 
-            <div>
+            <div className="app-content">
               <ToastContainer />
               {children}
             </div>
