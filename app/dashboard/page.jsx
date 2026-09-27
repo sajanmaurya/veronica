@@ -6,9 +6,9 @@ export default function Dashboard() {
   const router = useRouter();
 
   return (
-    <main className="min-h-[calc(100vh-72px)] overflow-hidden bg-[#f7f8f4]">
+    <main className="min-h-[calc(100vh-72px)] overflow-hidden bg-white/25 backdrop-blur-[2px]">
       <section className="mx-auto max-w-6xl px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
-        <div className="mx-auto max-w-3xl text-center">
+        <div className="glass-panel mx-auto max-w-4xl px-5 py-10 text-center sm:px-10 sm:py-14">
           <p className="text-[11px] font-bold uppercase tracking-[.2em] text-emerald-700">
             AI food intelligence
           </p>
@@ -34,7 +34,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => router.push("/dashboard/BarcodeScanning")}
-              className="glass-button-secondary min-w-[190px] border-2 border-emerald-200/80 bg-white/75 px-8 py-4 text-base font-bold text-slate-800 shadow-[0_10px_24px_rgba(20,45,35,.08)]"
+              className="glass-button-secondary min-w-[190px] border-2 border-white/80 bg-white/40 px-8 py-4 text-base font-bold text-slate-800 shadow-[0_10px_24px_rgba(20,45,35,.08)] backdrop-blur-xl"
             >
               Scan barcode
             </button>
@@ -44,8 +44,8 @@ export default function Dashboard() {
         <div className="relative mx-auto mt-14 max-w-5xl sm:mt-18">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-200/35 blur-[90px]" />
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/65 p-2 shadow-[0_30px_90px_rgba(27,55,44,.12)] backdrop-blur-xl sm:p-3">
-            <div className="grid overflow-hidden rounded-[1.5rem] bg-[#edf1eb] md:grid-cols-[.92fr_1.08fr]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/45 p-2 shadow-[0_30px_90px_rgba(27,55,44,.12)] backdrop-blur-2xl sm:p-3">
+            <div className="grid overflow-hidden rounded-[1.5rem] border border-white/55 bg-white/30 md:grid-cols-[.92fr_1.08fr]">
               <div className="relative min-h-[270px] overflow-hidden sm:min-h-[330px]">
                 <img
                   src="/back.png"
@@ -53,7 +53,7 @@ export default function Dashboard() {
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/10" />
-                <div className="absolute bottom-5 left-5 rounded-2xl border border-white/50 bg-white/70 px-4 py-3 backdrop-blur-xl">
+                <div className="absolute bottom-5 left-5 rounded-2xl border border-white/60 bg-white/55 px-4 py-3 shadow-[0_12px_30px_rgba(20,45,35,.12)] backdrop-blur-2xl">
                   <p className="text-[9px] font-bold uppercase tracking-[.16em] text-emerald-700">
                     Veronica
                   </p>
@@ -63,12 +63,12 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-col justify-center p-6 sm:p-9">
+              <div className="flex flex-col justify-center bg-white/20 p-6 backdrop-blur-xl sm:p-9">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">
+                  <p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-500">
                     Example analysis
                   </p>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+                  <span className="rounded-full border border-white/70 bg-white/55 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 backdrop-blur-xl">
                     8.2 / 10
                   </span>
                 </div>
@@ -86,7 +86,7 @@ export default function Dashboard() {
                   ].map(([value, label]) => (
                     <div
                       key={label}
-                      className="rounded-2xl bg-white/80 px-3 py-3.5"
+                      className="rounded-2xl border border-white/70 bg-white/50 px-3 py-3.5 shadow-[0_8px_24px_rgba(20,45,35,.06)] backdrop-blur-xl"
                     >
                       <p className="text-lg font-semibold tracking-[-.03em] text-slate-900">
                         {value}
@@ -96,8 +96,8 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                <div className="mt-5 border-t border-slate-900/8 pt-5">
-                  <p className="text-xs font-medium text-slate-400">
+                <div className="mt-5 border-t border-white/70 pt-5">
+                  <p className="text-xs font-medium text-slate-500">
                     Ingredients
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -105,7 +105,7 @@ export default function Dashboard() {
                       (item) => (
                         <span
                           key={item}
-                          className="rounded-full bg-white px-2.5 py-1.5 text-[10px] text-slate-600"
+                          className="rounded-full border border-white/70 bg-white/50 px-2.5 py-1.5 text-[10px] text-slate-600 backdrop-blur-xl"
                         >
                           {item}
                         </span>
