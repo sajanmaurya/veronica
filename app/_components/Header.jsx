@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
@@ -19,9 +20,14 @@ export default function Header() {
     <header className="sticky top-0 z-40 px-4 pt-3 sm:px-6">
       <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-white/75 bg-white/55 px-3 py-2 shadow-[0_10px_35px_rgba(20,45,35,.08)] backdrop-blur-2xl">
         <Link href="/home" className="flex items-center gap-2.5 px-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-gradient-to-br from-lime-300 via-emerald-400 to-emerald-700 text-base font-black text-white shadow-sm">
-            V
-          </span>
+          <Image
+            src="/veronica-logo.svg"
+            alt="Veronica"
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-[12px] shadow-sm"
+            priority
+          />
           <span className="text-sm font-bold tracking-[.11em] text-slate-800">
             VERONICA
           </span>
