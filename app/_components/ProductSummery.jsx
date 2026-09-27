@@ -162,6 +162,28 @@ export default function ProductSummary({
   if (!aiData) return null;
 
   const rating = Number(aiData.rating) || 0;
+  const nutrition = aiData.nutrition || {};
+
+  const nutritionItems = [
+    ["Calories", nutrition.calories, "kcal"],
+    ["Added sugar", nutrition.added_sugar_g, "g"],
+    ["Total sugar", nutrition.total_sugar_g, "g"],
+    ["Saturated fat", nutrition.saturated_fat_g, "g"],
+    ["Total fat", nutrition.total_fat_g, "g"],
+    ["Carbohydrates", nutrition.carbohydrates_g, "g"],
+    ["Fiber", nutrition.fiber_g, "g"],
+    ["Protein", nutrition.protein_g, "g"],
+    ["Sodium", nutrition.sodium_mg, "mg"],
+    ["Trans fat", nutrition.trans_fat_g, "g"],
+  ];
+
+  const visibleIngredients = Array.isArray(aiData.ingredients)
+    ? aiData.ingredients.filter(Boolean)
+    : [];
+
+  const majorIngredients = Array.isArray(aiData.major_ingredients)
+    ? aiData.major_ingredients.filter((item) => item?.name)
+    : [];
 
   return (
     <section className="app-canvas pt-6">
@@ -203,13 +225,110 @@ export default function ProductSummary({
 
           <div className="mt-8 grid gap-5">
             <div className="rounded-2xl bg-white/45 p-5">
-              <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
-                Verdict
-              </h2>
-              <p className="mt-3 leading-7 text-slate-700">
-                {aiData.summary}
-              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
+                    Nutrition per serving
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {nutrition.serving_size
+                      ? `Serving size: ${nutrition.serving_size}`
+                      : "Values shown only when readable from the label."}
+                  </p>
+                </div>
+                {nutrition.servings_per_container != null && (
+                  <p className="text-xs font-medium text-slate-500">
+                    {nutrition.servings_per_container} servings/package
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {nutritionItems.map(([label, value, unit]) => (
+                  <div
+                    key={label}
+                    className="rounded-xl border border-white/70 bg-white/55 p-3"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {label}
+                    </p>
+                    <p className="mt-2 text-xl font-semibold text-slate-900">
+                      {value != null ? value : "—"}
+                      {value != null && (
+                        <span className="ml-1 text-xs font-medium text-slate-500">
+                          {unit}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            <div className="rounded-2xl bg-white/45 p-5">
+              <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
+                Ingredients
+              </h2>
+              {visibleIngredients.length ? (
+                <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {visibleIngredients.map((ingredient, index) => (
+                    <li
+                      key={`${ingredient}-${index}`}
+                      className="rounded-xl bg-white/60 px-4 py-3 text-sm leading-5 text-slate-700"
+                    >
+                      <span className="mr-2 font-semibold text-emerald-700">
+                        {index + 1}.
+                      </span>
+                      {ingredient}
+                    </li>
+                  ))}
+                </ol>
+              ) : majorIngredients.length ? (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {majorIngredients.map((item, index) => (
+                    <div
+                      key={`${item.name}-${index}`}
+                      className="rounded-xl bg-white/60 px-4 py-3 text-sm text-slate-700"
+                    >
+                      <strong className="text-slate-900">{item.name}</strong>
+                      {item.percentage != null && (
+                        <span className="ml-2 text-slate-500">
+                          {item.percentage}%
+                        </span>
+                      )}
+                      {item.amount_g_per_serving != null && (
+                        <span className="ml-2 text-slate-500">
+                          {item.amount_g_per_serving} g/serving
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-500">
+                  No readable ingredient list was detected in this image. Try a clearer close-up of the ingredients panel.
+                </p>
+              )}
+            </div>
+
+            {majorIngredients.length > 0 && (
+              <div className="rounded-2xl bg-emerald-50/55 p-5">
+                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-emerald-700">
+                  Major ingredients
+                </h2>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {majorIngredients.map((item, index) => (
+                    <span
+                      key={`${item.name}-major-${index}`}
+                      className="rounded-full bg-white/75 px-3 py-2 text-sm text-slate-700"
+                    >
+                      {item.name}
+                      {item.percentage != null ? ` · ${item.percentage}%` : ""}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl bg-rose-50/55 p-5">
               <h2 className="text-sm font-bold uppercase tracking-[.13em] text-rose-700">
@@ -232,10 +351,19 @@ export default function ProductSummary({
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-emerald-700">
-                  No significant concerns were identified.
+                <p className="mt-3 text-sm text-slate-500">
+                  No specific ingredient concern was flagged from the visible label.
                 </p>
               )}
+            </div>
+
+            <div className="rounded-2xl bg-white/45 p-5">
+              <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
+                Summary
+              </h2>
+              <p className="mt-3 leading-7 text-slate-700">
+                {aiData.summary || "No summary was returned."}
+              </p>
             </div>
 
             {aiData.user_specific_summary?.trim() && (
