@@ -39,13 +39,13 @@ const UserProfile = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-88px)] items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.12),_transparent_35%),linear-gradient(180deg,#f8fafc_0%,#eef7f4_100%)] p-4 sm:p-6">
-      <div className="w-full max-w-xl rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-[0_25px_60px_rgba(15,23,42,0.10)] backdrop-blur-sm sm:p-8">
+    <div className="app-canvas flex items-center justify-center">
+      <div className="glass-panel w-full max-w-xl p-6 sm:p-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-2xl font-bold text-white shadow-lg shadow-emerald-200">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-300 via-lime-400 to-emerald-600 text-2xl font-bold text-white shadow-lg shadow-emerald-900/15">
             ♥
           </div>
-          <h2 className="text-3xl font-black text-slate-800">Health Profile</h2>
+          <h2 className="text-3xl font-semibold tracking-[-.04em] text-slate-900">Health Profile</h2>
         </div>
 
         <div className="space-y-5">
@@ -55,7 +55,7 @@ const UserProfile = () => {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+              className="glass-input mt-1 block"
               placeholder="Enter your name"
             />
           </div>
@@ -66,7 +66,7 @@ const UserProfile = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+              className="glass-input mt-1 block"
               placeholder="Enter your email"
             />
           </div>
@@ -77,7 +77,7 @@ const UserProfile = () => {
               type="text"
               value={diseases}
               onChange={(e) => setDiseases(e.target.value)}
-              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+              className="glass-input mt-1 block"
               placeholder="e.g. Diabetes, Hypertension"
             />
           </div>
@@ -88,14 +88,14 @@ const UserProfile = () => {
               type="text"
               value={allergies}
               onChange={(e) => setAllergies(e.target.value)}
-              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+              className="glass-input mt-1 block"
               placeholder="e.g. Peanuts, Gluten"
             />
           </div>
 
           <button
             onClick={handleSave}
-            className="mt-2 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-lg font-semibold text-white shadow-[0_15px_30px_rgba(59,130,246,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_35px_rgba(59,130,246,0.4)]"
+            className="glass-button-primary mt-2 w-full py-4 text-base"
           >
             Save Profile
           </button>
