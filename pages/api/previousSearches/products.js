@@ -1,6 +1,14 @@
 import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/app/utils/prisma";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "2mb",
+    },
+  },
+};
+
 export default async function handler(req, res) {
   const { userId } = getAuth(req);
 
@@ -26,9 +34,9 @@ export default async function handler(req, res) {
       const productSearch = await prisma.productSearch.create({
         data: {
           userId,
-          productName,
-          imageFrontUrl,
-          imageNutritionImage,
+          productName: productName || "Unknown product",
+          imageFrontUrl: imageFrontUrl || null,
+          imageNutritionImage: imageNutritionImage || null,
           aiData,
         },
       });
@@ -36,7 +44,13 @@ export default async function handler(req, res) {
       return res.status(201).json(productSearch);
     } catch (error) {
       console.error("Failed to save product search:", error);
-      return res.status(500).json({ error: "Failed to save product search" });
+
+      return res.status(500).json({
+        error: "Failed to save product search",
+        ...(process.env.NODE_ENV !== "production"
+          ? { details: error?.message }
+          : {}),
+      });
     }
   }
 
@@ -50,6 +64,7 @@ export default async function handler(req, res) {
       return res.status(200).json(searches);
     } catch (error) {
       console.error("Failed to fetch product searches:", error);
+
       return res
         .status(500)
         .json({ error: "Failed to fetch product searches" });
