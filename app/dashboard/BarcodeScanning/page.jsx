@@ -15,54 +15,162 @@ const BarcodeScanning = () => {
   const [cameraError, setCameraError] = useState("");
   const [stopStream, setStopStream] = useState(true);
   const scanLocked = useRef(false);
+  const nativeVideoRef = useRef(null);
+  const nativeStreamRef = useRef(null);
+  const detectorTimerRef = useRef(null);
+  const nativeDetectorActive = useRef(false);
 
   const { profile } = useUserProfile();
 
   useEffect(() => {
-    // Start the camera immediately, like a payment/barcode scanner.
+    // Start immediately, like a payment/barcode scanner.
     scanLocked.current = false;
     setCameraError("");
-    setStopStream(false);
     setScanning(true);
 
     return () => {
-      setStopStream(true);
-      setScanning(false);
+      nativeDetectorActive.current = false;
+      if (detectorTimerRef.current) clearTimeout(detectorTimerRef.current);
+      nativeStreamRef.current?.getTracks?.().forEach((track) => track.stop());
+      nativeStreamRef.current = null;
     };
   }, []);
 
-  useEffect(() => {
-    if (!scanning) return;
+  const stopNativeCamera = () => {
+    nativeDetectorActive.current = false;
+    if (detectorTimerRef.current) {
+      clearTimeout(detectorTimerRef.current);
+      detectorTimerRef.current = null;
+    }
+    nativeStreamRef.current?.getTracks?.().forEach((track) => track.stop());
+    nativeStreamRef.current = null;
+  };
 
-    // Ask supported mobile cameras to continuously autofocus.
-    // Some Android browsers expose focusMode only through the active
-    // MediaStreamTrack, so apply it after the scanner has mounted.
-    const focusTimer = setTimeout(async () => {
-      try {
-        const video = document.querySelector("[data-veronica-scanner] video");
-        const stream = video?.srcObject;
+  const startNativeScanner = async () => {
+    try {
+      setCameraError("");
 
-        if (!stream || typeof stream.getVideoTracks !== "function") return;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera API is not supported in this browser.");
+      }
 
-        const track = stream.getVideoTracks()[0];
-        if (!track?.applyConstraints) return;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      });
 
-        const capabilities = track.getCapabilities?.();
+      nativeStreamRef.current = stream;
 
-        if (capabilities?.focusMode?.includes?.("continuous")) {
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track?.getCapabilities?.();
+
+      // Apply focus only after the camera is live. Do not put focusMode
+      // in getUserMedia's initial constraints because some Android
+      // camera drivers handle that constraint poorly.
+      if (track?.applyConstraints && capabilities?.focusMode?.includes?.("continuous")) {
+        try {
           await track.applyConstraints({
             advanced: [{ focusMode: "continuous" }],
           });
-          console.log("Veronica camera autofocus enabled.");
+        } catch (focusError) {
+          console.debug("Continuous autofocus unavailable:", focusError);
         }
-      } catch (error) {
-        // Autofocus is device/browser dependent. The scanner still works
-        // when the browser does not expose this camera control.
-        console.debug("Continuous autofocus unavailable:", error);
       }
-    }, 900);
 
-    return () => clearTimeout(focusTimer);
+      // A modest optical/digital zoom can make a product barcode large
+      // enough for reliable decoding when the device exposes zoom.
+      if (track?.applyConstraints && capabilities?.zoom) {
+        try {
+          const zoom = Math.min(
+            Math.max(capabilities.zoom.min || 1, 1.15),
+            capabilities.zoom.max || 1.15
+          );
+          await track.applyConstraints({
+            advanced: [{ zoom }],
+          });
+        } catch (zoomError) {
+          console.debug("Camera zoom unavailable:", zoomError);
+        }
+      }
+
+      const video = nativeVideoRef.current;
+      if (!video) return;
+
+      video.srcObject = stream;
+      await video.play();
+
+      if (!("BarcodeDetector" in window)) {
+        // Keep the existing ZXing scanner as a browser fallback.
+        console.log("Native BarcodeDetector unavailable; using ZXing fallback.");
+        return;
+      }
+
+      const supported = await window.BarcodeDetector.getSupportedFormats();
+      const preferredFormats = [
+        "ean_13",
+        "ean_8",
+        "upc_a",
+        "upc_e",
+        "code_128",
+        "code_39",
+        "itf",
+        "codabar",
+        "qr_code",
+      ];
+      const formats = preferredFormats.filter((format) => supported.includes(format));
+
+      if (!formats.length) return;
+
+      const detector = new window.BarcodeDetector({ formats });
+      nativeDetectorActive.current = true;
+
+      const detect = async () => {
+        if (!nativeDetectorActive.current || !nativeVideoRef.current) return;
+
+        try {
+          const results = await detector.detect(nativeVideoRef.current);
+
+          if (results?.length) {
+            const value = String(results[0].rawValue || "").trim();
+            if (value && !scanLocked.current) {
+              handleScan(null, { text: value });
+              return;
+            }
+          }
+        } catch (error) {
+          console.debug("Barcode detection frame skipped:", error);
+        }
+
+        detectorTimerRef.current = setTimeout(detect, 100);
+      };
+
+      detect();
+    } catch (error) {
+      console.error("Native camera error:", error);
+      setCameraError(
+        error?.name === "NotAllowedError"
+          ? "Camera permission was denied. Allow camera access and reload Veronica."
+          : error?.name === "NotFoundError"
+            ? "No camera was found on this device."
+            : "Unable to start the camera. Please check browser camera permissions."
+      );
+      setScanning(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!scanning) {
+      stopNativeCamera();
+      return;
+    }
+
+    startNativeScanner();
+
+    return () => stopNativeCamera();
   }, [scanning]);
 
   const [imageFrontUrl, setImageFrontUrl] = useState("");
@@ -403,6 +511,7 @@ Return only the JSON object.
   const resetScan = () => {
     scanLocked.current = false;
     setStopStream(true);
+    stopNativeCamera();
     setScanning(false);
     setCameraError("");
     setData("");
@@ -452,55 +561,52 @@ Return only the JSON object.
           )}
 
           {scanning && (
-            <div data-veronica-scanner className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black/10 p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
-              <div className="relative flex h-[320px] w-full items-center justify-center overflow-hidden rounded-2xl bg-black">
-                <BarcodeScannerComponent
-                onUpdate={handleScan}
-                onError={(error) => {
-                  console.error("Barcode scanner error:", error);
-                  if (error?.name === "NotAllowedError") {
-                    setCameraError("Camera permission was denied. Allow camera access in your browser settings.");
-                  } else if (error?.name === "NotFoundError") {
-                    setCameraError("No camera was found on this device.");
-                  } else if (error?.name === "NotReadableError") {
-                    setCameraError("The camera is already being used by another app or browser tab.");
-                  } else {
-                    setCameraError("Unable to access the camera. Check your browser camera permission and try again.");
-                  }
-                  setStopStream(true);
-                  setScanning(false);
-                }}
-                facingMode="environment"
-                videoConstraints={{
-                  facingMode: { ideal: "environment" },
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                  aspectRatio: { ideal: 16 / 9 },
-                  advanced: [
-                    {
-                      focusMode: "continuous",
-                    },
-                  ],
-                }}
-                stopStream={stopStream}
-                width="100%"
-                height={360}
-                delay={120}
-              />
+            <div className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
+              <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-black">
+                <video
+                  ref={nativeVideoRef}
+                  muted
+                  playsInline
+                  autoPlay
+                  className="h-full w-full object-contain"
+                />
 
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="relative h-40 w-[78%] max-w-sm rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(0,0,0,.28)]">
-                  <span className="absolute -left-0.5 -top-0.5 h-7 w-7 rounded-tl-xl border-l-4 border-t-4 border-emerald-300" />
-                  <span className="absolute -right-0.5 -top-0.5 h-7 w-7 rounded-tr-xl border-r-4 border-t-4 border-emerald-300" />
-                  <span className="absolute -bottom-0.5 -left-0.5 h-7 w-7 rounded-bl-xl border-b-4 border-l-4 border-emerald-300" />
-                  <span className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-br-xl border-b-4 border-r-4 border-emerald-300" />
-                  <span className="absolute left-3 right-3 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-emerald-300/90 shadow-[0_0_12px_rgba(110,231,183,.9)]" />
+                {/* ZXing fallback is mounted only when the native detector
+                    is unavailable. It uses the same camera stream. */}
+                {!("BarcodeDetector" in (typeof window !== "undefined" ? window : {})) && (
+                  <div className="absolute inset-0">
+                    <BarcodeScannerComponent
+                      onUpdate={handleScan}
+                      onError={(error) => {
+                        console.error("Barcode scanner error:", error);
+                        setCameraError("Unable to decode the barcode with this browser. Try Chrome on Android or enter the barcode manually.");
+                      }}
+                      videoConstraints={{
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                      }}
+                      stopStream={stopStream}
+                      width="100%"
+                      height={360}
+                      delay={150}
+                    />
+                  </div>
+                )}
+
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative h-36 w-[82%] max-w-md rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(0,0,0,.28)]">
+                    <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-emerald-300" />
+                    <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-emerald-300" />
+                    <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-emerald-300" />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-emerald-300" />
+                    <span className="absolute left-4 right-4 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-emerald-300/90 shadow-[0_0_14px_rgba(110,231,183,.95)]" />
+                  </div>
                 </div>
-              </div>
 
-              <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/45 px-4 py-2 text-xs font-medium text-white backdrop-blur-md">
-                Scanning automatically
-              </div>
+                <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/55 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
+                  Point the barcode inside the frame
+                </div>
               </div>
             </div>
           )}
