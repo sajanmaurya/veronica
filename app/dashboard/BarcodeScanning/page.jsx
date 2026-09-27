@@ -38,15 +38,63 @@ const BarcodeScanning = () => {
         throw new Error("Camera access is not supported in this browser.");
       }
 
-      // Start the Android camera ourselves so the <video> element receives
-      // the live MediaStream before ZXing begins decoding. This is more reliable
-      // on Android Chrome/WebViews than letting ZXing own the video attachment.
+      // Android phones can expose several rear lenses (main, ultra-wide,
+      // telephoto). "environment" alone may select a lens that cannot focus
+      // on a nearby product barcode. Request permission first, enumerate the
+      // actual cameras, then prefer the primary rear camera.
+      const permissionStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" } },
+      });
+      permissionStream.getTracks().forEach((track) => track.stop());
+
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      if (!devices.length) {
+        throw new Error("No camera was found on this device.");
+      }
+
+      const rearCameras = devices.filter((device) => {
+        const label = (device.label || "").toLowerCase();
+        return (
+          !/front|user|selfie/i.test(label) &&
+          (/back|rear|environment|facing back/i.test(label) || devices.length === 1)
+        );
+      });
+
+      // Prefer the primary/main rear lens. On Android Chrome this is commonly
+      // exposed as camera 0 / facing back. Avoid ultra-wide and telephoto
+      // lenses for close barcode work because their minimum focus distance
+      // can be unsuitable.
+      const cameraPool = rearCameras.length ? rearCameras : devices;
+      const rearCamera =
+        cameraPool.find((device) =>
+          /camera\s*0|camera2\s*0|0,?\s*facing\s*back|main|primary|standard/i.test(
+            device.label || ""
+          )
+        ) ||
+        cameraPool.find((device) =>
+          !/ultra.?wide|0\.5x|telephoto|tele|zoom/i.test(device.label || "")
+        ) ||
+        cameraPool[0];
+
+      console.log(
+        "Veronica camera selection:",
+        cameraPool.map((device) => ({
+          id: device.deviceId,
+          label: device.label,
+        })),
+        "selected:",
+        rearCamera.label
+      );
+
+      // Start the selected camera ourselves so the <video> element receives
+      // the live stream before ZXing begins decoding.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          deviceId: { exact: rearCamera.deviceId },
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
           frameRate: { ideal: 30, max: 30 },
         },
       });
@@ -86,23 +134,40 @@ const BarcodeScanning = () => {
       const track = stream.getVideoTracks()[0];
       const capabilities = track?.getCapabilities?.();
 
-      // Prefer continuous autofocus for close-up product barcodes.
-      if (
-        track?.applyConstraints &&
-        Array.isArray(capabilities?.focusMode)
-      ) {
-        try {
+      // Prefer continuous autofocus. For browsers that expose focusDistance,
+      // bias the lens toward a normal close barcode distance (~25 cm).
+      if (track?.applyConstraints) {
+        const advanced = [];
+
+        if (Array.isArray(capabilities?.focusMode)) {
           if (capabilities.focusMode.includes("continuous")) {
-            await track.applyConstraints({
-              advanced: [{ focusMode: "continuous" }],
-            });
+            advanced.push({ focusMode: "continuous" });
           }
-        } catch (focusError) {
-          console.warn("Continuous autofocus unavailable:", focusError);
+        }
+
+        if (
+          capabilities?.focusDistance &&
+          Number.isFinite(capabilities.focusDistance.min) &&
+          Number.isFinite(capabilities.focusDistance.max)
+        ) {
+          const min = Number(capabilities.focusDistance.min);
+          const max = Number(capabilities.focusDistance.max);
+          const target = Math.min(Math.max(0.25, min), max);
+          advanced.push({ focusDistance: target });
+        }
+
+        if (advanced.length) {
+          try {
+            await track.applyConstraints({ advanced });
+          } catch (focusError) {
+            console.warn("Barcode autofocus constraints unavailable:", focusError);
+          }
         }
       }
 
-      // Keep digital zoom off; some Android devices become softer when zoomed.
+      const settings = track?.getSettings?.();
+      console.log("Veronica active camera settings:", settings);
+
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
 
