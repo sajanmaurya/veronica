@@ -13,6 +13,16 @@ export default async function handler(req, res) {
       req.body;
 
     try {
+      await prisma.userProfile.upsert({
+        where: { userId },
+        update: {},
+        create: {
+          userId,
+          name: "Guest User",
+          email: "guest@example.com",
+        },
+      });
+
       const productSearch = await prisma.productSearch.create({
         data: {
           userId,
