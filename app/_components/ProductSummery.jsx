@@ -14,9 +14,9 @@ export default function ProductSummary({ aiData, productName, imageFrontUrl, ima
         const res = await fetch("/api/previousSearches/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productName, imageFrontUrl, imageNutritionImage, aiData }),
+          body: JSON.stringify({ productName: productName || "Image label analysis", imageFrontUrl, imageNutritionImage, aiData }),
         });
-        if (!res.ok) throw new Error((await res.json()).error || "Failed to save search");
+        if (!res.ok) {\n          const responseText = await res.text();\n          let message = "Failed to save search";\n          try {\n            message = JSON.parse(responseText).error || message;\n          } catch {\n            console.error("Unexpected history API response:", responseText);\n          }\n          throw new Error(message);\n        }
         setError(null);
       } catch (err) {
         setError(err.message);
