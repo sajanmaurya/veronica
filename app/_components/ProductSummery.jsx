@@ -16,7 +16,16 @@ export default function ProductSummary({ aiData, productName, imageFrontUrl, ima
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ productName: productName || "Image label analysis", imageFrontUrl, imageNutritionImage, aiData }),
         });
-        if (!res.ok) {\n          const responseText = await res.text();\n          let message = "Failed to save search";\n          try {\n            message = JSON.parse(responseText).error || message;\n          } catch {\n            console.error("Unexpected history API response:", responseText);\n          }\n          throw new Error(message);\n        }
+        if (!res.ok) {
+          const responseText = await res.text();
+          let message = "Failed to save search";
+          try {
+            message = JSON.parse(responseText).error || message;
+          } catch {
+            console.error("Unexpected history API response:", responseText);
+          }
+          throw new Error(message);
+        }
         setError(null);
       } catch (err) {
         setError(err.message);
