@@ -29,7 +29,7 @@ export default function Dashboard() {
               onClick={() => router.push("/dashboard/ImageUpload")}
               className="glass-button-primary px-7 py-3.5 text-sm"
             >
-              Analyze a label
+              Read the label
               <span className="ml-2">→</span>
             </button>
             <button
