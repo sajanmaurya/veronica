@@ -71,24 +71,24 @@ const ImageUpload = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full mt-12 px-4">
+    <main className="app-canvas"><div className="mx-auto flex w-full max-w-3xl flex-col items-center">
 
       {!aiData && (
-        <div className="flex flex-col items-center w-full max-w-xl gap-6">
+        <div className="glass-panel flex w-full max-w-xl flex-col items-center gap-5 p-5 sm:p-8"><div className="w-full text-center"><p className="eyebrow">Visual analysis</p><h1 className="mt-4 text-3xl font-semibold tracking-[-.04em] text-slate-900">Read a food label</h1><p className="mt-2 text-sm leading-6 text-slate-600">Upload a clear photo of ingredients or nutrition facts.</p></div>
 
           {/* Image Preview */}
           {preview && (
             <img
               src={preview}
               alt="Uploaded"
-              className="h-64 object-cover rounded-lg shadow-lg mb-2"
+              className="h-64 w-full rounded-2xl object-cover shadow-lg mb-1"
             />
           )}
 
           {/* Upload */}
-          <label className="w-full bg-gray-200 text-gray-600 h-20 py-4 px-6 rounded-lg text-lg font-medium hover:scale-105 hover:shadow-md transition-all flex items-center justify-center cursor-pointer">
+          <label className="glass-surface w-full min-h-28 rounded-2xl px-6 py-6 text-center text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white/80 flex items-center justify-center cursor-pointer">
 
-            Upload / Capture Image
+            Upload or capture an image
 
             <input
               type="file"
@@ -103,7 +103,7 @@ const ImageUpload = () => {
           {/* Analyze Button */}
           <button
             onClick={handleSubmit}
-            className="w-full bg-green-600 text-white text-lg py-3 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+            className="glass-button-primary w-full py-4 text-base disabled:pointer-events-none disabled:opacity-50"
             disabled={loading}
           >
             {loading
