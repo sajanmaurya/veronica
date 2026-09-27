@@ -176,6 +176,27 @@ Use exactly this structure:
 {
   "product_name": "Exact product/brand name visible on the package, or \"Unknown product\" if it cannot be read with confidence.",
   "rating": number,
+  "nutrition": {
+    "serving_size": "Exact serving size shown on the label, or null",
+    "servings_per_container": number_or_null,
+    "calories": number_or_null,
+    "total_fat_g": number_or_null,
+    "saturated_fat_g": number_or_null,
+    "trans_fat_g": number_or_null,
+    "carbohydrates_g": number_or_null,
+    "fiber_g": number_or_null,
+    "total_sugar_g": number_or_null,
+    "added_sugar_g": number_or_null,
+    "protein_g": number_or_null,
+    "sodium_mg": number_or_null
+  },
+  "major_ingredients": [
+    {
+      "name": "Major ingredient from the visible ingredient list",
+      "percentage": number_or_null,
+      "amount_g_per_serving": number_or_null
+    }
+  ],
   "harmful_ingredients": [
     {
       "name": "Ingredient Name",
@@ -186,10 +207,12 @@ Use exactly this structure:
   "user_specific_summary": "Personalized summary or empty string"
 }
 
+Nutrition values must be for the labeled serving, not the whole package, unless the label explicitly states per-package values.
+Only return a numeric value when it is clearly visible or can be calculated directly from visible label information.
+If a value is not available, return null.
+For major ingredients, only provide percentage when the percentage is explicitly visible. Only provide amount_g_per_serving when it is explicitly stated or can be directly calculated from a visible percentage and serving size. Otherwise return null.
+Do not invent nutrition or ingredient quantities.
 Do not use markdown.
-
-Do not invent nutrition values that cannot be read
-from the image.
 `;
 
     // Retry Gemini if the service temporarily returns 503
