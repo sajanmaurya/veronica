@@ -125,6 +125,7 @@ const ImageUpload = () => {
       )}
 
     </div>
+    </main>
   );
 };
 
