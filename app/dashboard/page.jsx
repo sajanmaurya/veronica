@@ -27,14 +27,14 @@ export default function Dashboard() {
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/dashboard/ImageUpload")}
-              className="glass-button-primary px-7 py-3.5 text-sm"
+              className="glass-button-primary min-w-[190px] px-8 py-4 text-base font-bold shadow-[0_12px_28px_rgba(8,121,95,.24)]"
             >
               Read the label
-              <span className="ml-2">→</span>
+              <span className="ml-2 text-lg">→</span>
             </button>
             <button
               onClick={() => router.push("/dashboard/BarcodeScanning")}
-              className="glass-button-secondary px-7 py-3.5 text-sm"
+              className="glass-button-secondary min-w-[190px] border-2 border-emerald-200/80 bg-white/75 px-8 py-4 text-base font-bold text-slate-800 shadow-[0_10px_24px_rgba(20,45,35,.08)]"
             >
               Scan barcode
             </button>
