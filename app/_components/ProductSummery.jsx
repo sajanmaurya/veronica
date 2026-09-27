@@ -1,123 +1,50 @@
-"use client"
-import React, { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
-const ProductSummary = ({ aiData, productName, imageFrontUrl, imageNutritionImage }) => {
-    const { user } = useUser();
-  const [saved, setSaved] = useState(false);
+export default function ProductSummary({ aiData, productName, imageFrontUrl, imageNutritionImage }) {
+  const { user } = useUser();
   const [error, setError] = useState(null);
 
-  const saveSearch = async () => {
-    if (!user || !aiData) return;
-
-    try {
-      const res = await fetch("/api/previousSearches/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productName,
-          imageFrontUrl,
-          imageNutritionImage,
-          aiData,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to save search");
-      }
-
-      setSaved(true);
-      setError(null);
-      console.log("product saved in data base")
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   useEffect(() => {
-      saveSearch();
-    }, [aiData]);
+    async function saveSearch() {
+      if (!user || !aiData) return;
+      try {
+        const res = await fetch("/api/previousSearches/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productName, imageFrontUrl, imageNutritionImage, aiData }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || "Failed to save search");
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+    saveSearch();
+  }, [aiData, imageFrontUrl, imageNutritionImage, productName, user]);
 
-    return (
-      aiData && (
-        <div className="p-6 mt-6 mx-auto max-w-4xl">
-             <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">Product Summary</h2>
-          {/* Product Name */}
-          {productName && (
-            <h2 className="font-bold text-3xl text-gray-800 mb-4 text-center">
-              Product Name - {productName}
-            </h2>
-          )}
-  
-          {/* Product Images */}
-          {(imageFrontUrl || imageNutritionImage) && (
-            <div className="flex justify-center gap-4 mb-6 flex-wrap">
-              {imageFrontUrl && (
-                <img
-                  src={imageFrontUrl}
-                  alt="Product Front"
-                  className="w-48 h-48 object-contain"
-                />
-              )}
-              {imageNutritionImage && (
-                <img
-                  src={imageNutritionImage}
-                  alt="Nutrition Info"
-                  className="w-48 h-48 object-contain"
-                />
-              )}
-            </div>
-          )}
-  
-          {/* Rating */}
-          <p className="text-lg font-semibold text-blue-600 bg-blue-100 p-2 rounded-lg w-fit">
-            <span className="text-gray-700">Rating:</span> {aiData.rating}/10
-          </p>
-  
-          {/* Harmful Ingredients */}
-          <div className="mt-4">
-            <h4 className="text-red-600 text-xl font-semibold">Harmful Ingredients:</h4>
-            {aiData.harmful_ingredients?.length > 0 ? (
-              <ul className="list-disc list-inside mt-2 space-y-2">
-                {aiData.harmful_ingredients.map((ingredient, index) => (
-                  <li key={index} className="text-gray-700 bg-red-50 p-2 rounded-lg">
-                    <strong className="text-red-500">{ingredient.name}:</strong> {ingredient.impact}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-green-600 bg-green-100 p-2 rounded-lg mt-2">
-                No harmful ingredients detected.
-              </p>
-            )}
+  if (!aiData) return null;
+  const rating = Number(aiData.rating) || 0;
+
+  return (
+    <section className="app-canvas pt-6">
+      <div className="mx-auto max-w-4xl">
+        <div className="glass-panel p-5 sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div><p className="eyebrow">Analysis complete</p><h1 className="mt-4 text-3xl font-semibold tracking-[-.04em] text-slate-900">{productName || "Product summary"}</h1><p className="mt-2 text-sm text-slate-600">A practical look at what is inside.</p></div>
+            <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20"><span className="text-3xl font-semibold">{rating}</span><span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">out of 10</span></div>
           </div>
-  
-          {/* General Summary */}
-          <div className="mt-4">
-            <h4 className="text-gray-800 text-xl font-semibold">Summary:</h4>
-            <p className="text-gray-700 bg-gray-100 p-3 rounded-lg mt-2 leading-relaxed">
-              {aiData.summary}
-            </p>
+          {(imageFrontUrl || imageNutritionImage) && <div className="mt-7 flex flex-wrap gap-3">{[imageFrontUrl, imageNutritionImage].filter(Boolean).map((src, index) => <img key={src} src={src} alt={index ? "Nutrition label" : "Product"} className="h-32 w-32 rounded-2xl border border-white/70 bg-white/50 object-contain p-2" />)}</div>}
+          <div className="mt-8 grid gap-5">
+            <div className="rounded-2xl bg-white/45 p-5"><h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">Verdict</h2><p className="mt-3 leading-7 text-slate-700">{aiData.summary}</p></div>
+            <div className="rounded-2xl bg-rose-50/55 p-5"><h2 className="text-sm font-bold uppercase tracking-[.13em] text-rose-700">Ingredients to note</h2>{aiData.harmful_ingredients?.length ? <ul className="mt-3 space-y-3">{aiData.harmful_ingredients.map((item, index) => <li key={index} className="border-l-2 border-rose-400 pl-4 text-sm leading-6 text-slate-700"><strong className="font-semibold text-slate-900">{item.name}</strong><br />{item.impact}</li>)}</ul> : <p className="mt-3 text-sm text-emerald-700">No significant concerns were identified.</p>}</div>
+            {aiData.user_specific_summary?.trim() && <div className="rounded-2xl bg-violet-50/55 p-5"><h2 className="text-sm font-bold uppercase tracking-[.13em] text-violet-700">For your profile</h2><p className="mt-3 leading-7 text-slate-700">{aiData.user_specific_summary}</p></div>}
           </div>
-  
-          {/* Personalized Summary */}
-          {aiData.user_specific_summary && aiData.user_specific_summary.trim() !== "" && (
-            <div className="mt-4">
-              <h4 className="text-purple-700 text-xl font-semibold">Personalized Health Impact:</h4>
-              <p className="text-gray-700 bg-purple-100 p-3 rounded-lg mt-2 leading-relaxed">
-                {aiData.user_specific_summary}
-              </p>
-            </div>
-          )}
-           {error && (
-            <p className="text-red-600 mt-2 font-semibold">Error: {error}</p>
-          )}
+          {error && <p className="mt-5 text-sm text-rose-700">Could not save this result: {error}</p>}
         </div>
-      )
-    );
-  };
-  
-  
-  export default ProductSummary;
-  
+      </div>
+    </section>
+  );
+}
