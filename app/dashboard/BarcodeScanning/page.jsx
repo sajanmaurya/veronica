@@ -31,6 +31,40 @@ const BarcodeScanning = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!scanning) return;
+
+    // Ask supported mobile cameras to continuously autofocus.
+    // Some Android browsers expose focusMode only through the active
+    // MediaStreamTrack, so apply it after the scanner has mounted.
+    const focusTimer = setTimeout(async () => {
+      try {
+        const video = document.querySelector("[data-veronica-scanner] video");
+        const stream = video?.srcObject;
+
+        if (!stream || typeof stream.getVideoTracks !== "function") return;
+
+        const track = stream.getVideoTracks()[0];
+        if (!track?.applyConstraints) return;
+
+        const capabilities = track.getCapabilities?.();
+
+        if (capabilities?.focusMode?.includes?.("continuous")) {
+          await track.applyConstraints({
+            advanced: [{ focusMode: "continuous" }],
+          });
+          console.log("Veronica camera autofocus enabled.");
+        }
+      } catch (error) {
+        // Autofocus is device/browser dependent. The scanner still works
+        // when the browser does not expose this camera control.
+        console.debug("Continuous autofocus unavailable:", error);
+      }
+    }, 900);
+
+    return () => clearTimeout(focusTimer);
+  }, [scanning]);
+
   const [imageFrontUrl, setImageFrontUrl] = useState("");
   const [imageNutritionImage, setImageNutritionImage] = useState("");
   const [productName, setProductName] = useState("");
@@ -418,7 +452,7 @@ Return only the JSON object.
           )}
 
           {scanning && (
-            <div className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black/10 p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
+            <div data-veronica-scanner className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black/10 p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
               <div className="relative flex h-[320px] w-full items-center justify-center overflow-hidden rounded-2xl bg-black">
                 <BarcodeScannerComponent
                 onUpdate={handleScan}
@@ -441,11 +475,17 @@ Return only the JSON object.
                   facingMode: { ideal: "environment" },
                   width: { ideal: 1280 },
                   height: { ideal: 720 },
+                  aspectRatio: { ideal: 16 / 9 },
+                  advanced: [
+                    {
+                      focusMode: "continuous",
+                    },
+                  ],
                 }}
                 stopStream={stopStream}
-                width={550}
-                height={300}
-                delay={180}
+                width="100%"
+                height={360}
+                delay={120}
               />
 
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
