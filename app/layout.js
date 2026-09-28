@@ -6,12 +6,6 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserProfileProvider } from "@/context/UserProfileContext";
 
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
 const spaceMono = Space_Mono({
   variable: "--font-space-mono",
   subsets: ["latin"],
