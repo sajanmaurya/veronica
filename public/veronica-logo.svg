@@ -1,30 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
   <defs>
-    <linearGradient id="bg" x1="12" y1="8" x2="116" y2="120" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#EFFFCA"/>
-      <stop offset=".45" stop-color="#7DE9B7"/>
-      <stop offset="1" stop-color="#9DE8F2"/>
+    <linearGradient id="brand" x1="18" y1="18" x2="110" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B5F4A"/>
+      <stop offset=".5" stop-color="#28A879"/>
+      <stop offset="1" stop-color="#9BE7B5"/>
     </linearGradient>
-    <linearGradient id="v" x1="38" y1="34" x2="91" y2="100" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#19C79A"/>
-      <stop offset=".5" stop-color="#008F79"/>
-      <stop offset="1" stop-color="#43E56B"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#08795F" flood-opacity=".18"/>
-    </filter>
   </defs>
-  <rect x="5" y="5" width="118" height="118" rx="29" fill="url(#bg)" fill-opacity=".72"/>
-  <rect x="6" y="6" width="116" height="116" rx="28" stroke="white" stroke-opacity=".72" stroke-width="2"/>
-  <g stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".88">
-    <path d="M27 42V29a5 5 0 0 1 5-5h13"/>
-    <path d="M101 42V29a5 5 0 0 0-5-5H83"/>
-    <path d="M27 86v13a5 5 0 0 0 5 5h13"/>
-    <path d="M101 86v13a5 5 0 0 1-5 5H83"/>
+  <g stroke="url(#brand)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M29 24.5A49 49 0 0 1 55 14.2"/>
+    <path d="M73 14.2A49 49 0 0 1 99 24.5"/>
+    <path d="M106 34A49 49 0 0 1 113.8 63"/>
+    <path d="M113.8 65A49 49 0 0 1 106 94"/>
+    <path d="M99 103.5A49 49 0 0 1 73 113.8"/>
+    <path d="M55 113.8A49 49 0 0 1 29 103.5"/>
+    <path d="M22 94A49 49 0 0 1 14.2 65"/>
+    <path d="M14.2 63A49 49 0 0 1 22 34"/>
+    <path d="M29 31H99"/>
+    <path d="M29 31L62.8 106L99 31"/>
+    <path d="M43 44H84L63.5 78L43 44Z"/>
+    <path d="M43 44L63.5 78L84 44"/>
   </g>
-  <g filter="url(#shadow)">
-    <path d="M37 36c-2.5-5.5 5.6-8.7 8.3-3.5l18.2 35 17.7-29.1c2.9-4.8 10.5-.8 7.9 4.2L69.4 94.4c-2.6 4.5-9.1 4.4-11.6-.1L37 36Z" fill="url(#v)"/>
-    <path d="M63.8 68.1c1.6-15.9 9.7-27.1 25.2-34.5-.2 16.7-8.7 29.7-25.2 34.5Z" fill="#66E64F"/>
-    <path d="M64.3 68.2c4.2-7.2 10.7-13.5 19.4-18.7" stroke="white" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>
-  </g>
+  <path d="M63.5 78V105" stroke="url(#brand)" stroke-width="4.5" stroke-linecap="round"/>
 </svg>
