@@ -22,7 +22,7 @@ export default function Dashboard() {
               inside your food.
             </h1>
 
-            <p className="ndot57-home mx-auto mt-7 max-w-2xl text-base leading-7 sm:text-lg">
+            <p className="ndot57-home mx-auto mt-7 max-w-2xl text-base leading-7 text-[#E10600] sm:text-lg">
               Scan a barcode or photograph a food label. Veronica turns the
               fine print into clear, useful answers.
             </p>
