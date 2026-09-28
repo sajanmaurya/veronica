@@ -1,4 +1,4 @@
-import { Montserrat, Geist_Mono } from "next/font/google";
+import { Montserrat, Geist_Mono, Space_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import Header from "./_components/Header";
@@ -10,6 +10,12 @@ const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -28,7 +34,7 @@ export default function RootLayout({ children }) {
       <UserProfileProvider>
         <html lang="en">
           <body
-            className={`${montserrat.variable} ${geistMono.variable} antialiased`}
+            className={`${montserrat.variable} ${spaceMono.variable} ${geistMono.variable} antialiased`}
           >
             <Header />
 
