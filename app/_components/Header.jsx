@@ -23,7 +23,7 @@ export default function Header() {
       <div className="relative mx-auto max-w-6xl rounded-[1.5rem] border border-white/75 bg-white/55 px-3 py-2 shadow-[0_10px_35px_rgba(6,59,47,.08)] backdrop-blur-2xl sm:rounded-full">
         <div className="flex items-center justify-between">
           <Link
-            href="/home"
+            href="/UserProfile"
             className="flex items-center gap-2.5 px-1.5 sm:px-2"
             onClick={() => setMenuOpen(false)}
           >
