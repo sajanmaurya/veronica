@@ -1,4 +1,4 @@
-import { Montserrat, Geist_Mono, Space_Mono } from "next/font/google";
+import { Geist_Mono, Space_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import Header from "./_components/Header";
@@ -34,7 +34,7 @@ export default function RootLayout({ children }) {
       <UserProfileProvider>
         <html lang="en">
           <body
-            className={`${montserrat.variable} ${spaceMono.variable} ${geistMono.variable} antialiased`}
+            className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
           >
             <Header />
 
