@@ -1,4 +1,4 @@
-import { Manrope, Geist_Mono } from "next/font/google";
+import { Montserrat, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import Header from "./_components/Header";
@@ -6,9 +6,10 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserProfileProvider } from "@/context/UserProfileContext";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -27,7 +28,7 @@ export default function RootLayout({ children }) {
       <UserProfileProvider>
         <html lang="en">
           <body
-            className={`${manrope.variable} ${geistMono.variable} antialiased`}
+            className={`${montserrat.variable} ${geistMono.variable} antialiased`}
           >
             <Header />
 
