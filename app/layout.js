@@ -1,16 +1,10 @@
-import { Geist_Mono, Space_Mono, Doto } from "next/font/google";
+import { Geist_Mono, Space_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import Header from "./_components/Header";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserProfileProvider } from "@/context/UserProfileContext";
-
-const doto = Doto({
-  variable: "--font-doto",
-  subsets: ["latin"],
-  weight: "400",
-});
 
 const spaceMono = Space_Mono({
   variable: "--font-space-mono",
@@ -34,7 +28,7 @@ export default function RootLayout({ children }) {
       <UserProfileProvider>
         <html lang="en">
           <body
-            className={`${doto.variable} ${spaceMono.variable} ${geistMono.variable} antialiased`}
+            className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
           >
             <Header />
 
