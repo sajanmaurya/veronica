@@ -23,7 +23,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   color: var(--ink);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   background:
     radial-gradient(circle at 50% 0%, rgba(155, 231, 181, .18), transparent 34%),
     linear-gradient(rgba(246, 251, 248, .56), rgba(234, 246, 239, .68)),
