@@ -99,3 +99,16 @@ img { max-width: 100%; display: block; }
     transition-duration:.01ms!important;
   }
 }
+
+
+@font-face {
+  font-family: "Ndot57Home";
+  src: url("https://cdn.jsdelivr.net/gh/xeji01/nothingfont@main/fonts/Ndot57-Regular.otf") format("opentype");
+  font-display: swap;
+}
+
+.ndot57-home {
+  font-family: "Ndot57Home", var(--font-space-mono), monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+}
