@@ -35,7 +35,7 @@ export default function Header() {
               className="h-9 w-9 brand-mark-glow sm:h-10 sm:w-10"
               priority
             />
-            <span className="text-sm font-bold tracking-[.14em] text-slate-800">
+            <span className="font-mono text-sm font-bold tracking-[.12em] text-slate-800">
               VERONICA
             </span>
           </Link>
@@ -45,7 +45,7 @@ export default function Header() {
               <Link
                 key={href}
                 href={href}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                className={`rounded-full px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[.12em] transition ${
                   pathname === href
                     ? "bg-[#0B5F4A] text-white shadow-[0_5px_16px_rgba(11,95,74,.18)]"
                     : "text-slate-500 hover:bg-white/70 hover:text-[#0B5F4A]"
@@ -59,7 +59,7 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="hidden glass-button-primary px-3.5 py-2 text-xs sm:inline-flex">
+                <button className="hidden glass-button-primary px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] sm:inline-flex">
                   Log in
                 </button>
               </SignInButton>
@@ -99,7 +99,7 @@ export default function Header() {
                   key={href}
                   href={href}
                   onClick={() => setMenuOpen(false)}
-                  className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  className={`flex items-center justify-between rounded-xl px-4 py-3 font-mono text-xs font-bold uppercase tracking-[.1em] transition ${
                     pathname === href
                       ? "bg-[#0B5F4A] text-white shadow-sm"
                       : "text-slate-700 hover:bg-white/70 hover:text-[#0B5F4A]"
@@ -115,7 +115,7 @@ export default function Header() {
               <SignInButton mode="modal">
                 <button
                   onClick={() => setMenuOpen(false)}
-                  className="glass-button-primary mb-1 mt-1 w-full py-2.5 text-sm"
+                  className="glass-button-primary mb-1 mt-1 w-full py-2.5 font-mono text-xs font-bold uppercase tracking-[.08em]"
                 >
                   Log in
                 </button>
