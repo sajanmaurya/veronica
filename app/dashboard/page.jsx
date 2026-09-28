@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
@@ -13,27 +12,11 @@ export default function Dashboard() {
           <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#9BE7B5]/25 blur-[90px]" />
 
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => router.push("/UserProfile")}
-              aria-label="Open Veronica profile"
-              className="mx-auto block rounded-[1.35rem] p-1 transition duration-200 hover:scale-[1.03] focus:outline-none focus:ring-4 focus:ring-[#7DD9A5]/40"
-            >
-              <Image
-                src="/veronica-logo.svg"
-                alt="Veronica"
-                width={72}
-                height={72}
-                className="brand-mark-glow h-[72px] w-[72px]"
-                priority
-              />
-            </button>
-
             <p className="mt-7 text-[11px] font-bold uppercase tracking-[.24em] text-[#0B5F4A]">
               AI food intelligence
             </p>
 
-            <h1 className="mx-auto mt-5 max-w-4xl text-[clamp(3rem,7vw,6.6rem)] font-semibold leading-[.94] tracking-[-.065em] text-[#10241E]">
+            <h1 className="mx-auto mt-5 max-w-4xl text-[clamp(2.8rem,6.5vw,6.2rem)] font-bold leading-[.98] tracking-[-.045em] text-[#10241E]">
               Know what&apos;s
               <br />
               inside your food.
