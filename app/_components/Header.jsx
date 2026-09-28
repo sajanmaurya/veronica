@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 const links = [
@@ -15,55 +16,122 @@ const links = [
 
 export default function Header() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 px-4 pt-3 sm:px-6">
-      <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-white/75 bg-white/55 px-3 py-2 shadow-[0_10px_35px_rgba(6,59,47,.08)] backdrop-blur-2xl">
-        <Link href="/home" className="flex items-center gap-2.5 px-2">
-          <Image
-            src="/veronica-logo.svg"
-            alt="Veronica"
-            width={40}
-            height={40}
-            className="h-10 w-10 brand-mark-glow"
-            priority
-          />
-          <span className="text-sm font-bold tracking-[.14em] text-slate-800">
-            VERONICA
-          </span>
-        </Link>
+    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6">
+      <div className="relative mx-auto max-w-6xl rounded-[1.5rem] border border-white/75 bg-white/55 px-3 py-2 shadow-[0_10px_35px_rgba(6,59,47,.08)] backdrop-blur-2xl sm:rounded-full">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/home"
+            className="flex items-center gap-2.5 px-1.5 sm:px-2"
+            onClick={() => setMenuOpen(false)}
+          >
+            <Image
+              src="/veronica-logo.svg"
+              alt="Veronica"
+              width={40}
+              height={40}
+              className="h-9 w-9 brand-mark-glow sm:h-10 sm:w-10"
+              priority
+            />
+            <span className="text-sm font-bold tracking-[.14em] text-slate-800">
+              VERONICA
+            </span>
+          </Link>
 
-        <nav className="hidden items-center gap-1 sm:flex">
-          {links.map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                pathname === href
-                  ? "bg-[#0B5F4A] text-white shadow-[0_5px_16px_rgba(11,95,74,.18)]"
-                  : "text-slate-500 hover:bg-white/70 hover:text-[#0B5F4A]"
-              }`}
+          <nav className="hidden items-center gap-1 sm:flex">
+            {links.map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  pathname === href
+                    ? "bg-[#0B5F4A] text-white shadow-[0_5px_16px_rgba(11,95,74,.18)]"
+                    : "text-slate-500 hover:bg-white/70 hover:text-[#0B5F4A]"
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="hidden glass-button-primary px-3.5 py-2 text-xs sm:inline-flex">
+                  Log in
+                </button>
+              </SignInButton>
+            </SignedOut>
+
+            <SignedIn>
+              <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 sm:block">
+                <UserButton afterSignOutUrl="/" />
+              </div>
+            </SignedIn>
+
+            <button
+              type="button"
+              aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/65 text-[#0B5F4A] shadow-sm transition hover:bg-white/85 sm:hidden"
             >
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-2">
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="glass-button-primary px-3.5 py-2 text-xs">
-                Log in
-              </button>
-            </SignInButton>
-          </SignedOut>
-
-          <SignedIn>
-            <div className="rounded-full border border-white/80 bg-white/60 p-1">
-              <UserButton afterSignOutUrl="/" />
-            </div>
-          </SignedIn>
+              {menuOpen ? (
+                <span className="text-xl leading-none">×</span>
+              ) : (
+                <span className="flex flex-col gap-1.5">
+                  <span className="h-0.5 w-4 rounded-full bg-current" />
+                  <span className="h-0.5 w-4 rounded-full bg-current" />
+                  <span className="h-0.5 w-4 rounded-full bg-current" />
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {menuOpen && (
+          <nav className="mt-2 border-t border-white/60 pt-2 sm:hidden">
+            <div className="grid gap-1 pb-1">
+              {links.map(([href, label]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    pathname === href
+                      ? "bg-[#0B5F4A] text-white shadow-sm"
+                      : "text-slate-700 hover:bg-white/70 hover:text-[#0B5F4A]"
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className="text-base opacity-60">›</span>
+                </Link>
+              ))}
+            </div>
+
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="glass-button-primary mb-1 mt-1 w-full py-2.5 text-sm"
+                >
+                  Log in
+                </button>
+              </SignInButton>
+            </SignedOut>
+
+            <SignedIn>
+              <div className="mt-1 flex items-center justify-between rounded-xl border border-white/70 bg-white/45 px-4 py-2.5">
+                <span className="text-xs font-semibold text-slate-600">
+                  Account
+                </span>
+                <UserButton afterSignOutUrl="/" />
+              </div>
+            </SignedIn>
+          </nav>
+        )}
       </div>
     </header>
   );
