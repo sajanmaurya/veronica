@@ -23,7 +23,8 @@ export default function Dashboard() {
               <p className="eyebrow">AI food intelligence</p>
             <span className="rounded-full border border-white/70 bg-white/45 px-3 py-1 text-[10px] font-bold text-slate-500 backdrop-blur-xl">
               No account required to scan
-            </span>
+              </span>
+            </div>
           </div>
 
           <h1 className="mt-5 text-[clamp(3.2rem,7vw,6.2rem)] font-semibold leading-[.9] tracking-[-.075em] text-[#17211d]">
