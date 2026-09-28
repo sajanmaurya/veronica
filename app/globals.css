@@ -3,24 +3,43 @@
 @tailwind utilities;
 
 :root {
-  --ink: #17211d;
+  --ink: #10241e;
+  --brand-950: #063b2f;
+  --brand-800: #0b5f4a;
+  --brand-700: #138261;
+  --brand-500: #28a879;
+  --brand-300: #7dd9a5;
+  --brand-100: #e8f8ef;
   --glass-bg: rgba(255, 255, 255, .26);
   --glass-strong: rgba(255, 255, 255, .42);
   --glass-border: rgba(255, 255, 255, .62);
-  --glass-shadow: 0 16px 42px rgba(20, 45, 35, .12);
+  --glass-shadow: 0 16px 42px rgba(6, 59, 47, .12);
 }
-* { border-color: rgba(20, 45, 35, .1); }
+
+* { border-color: rgba(6, 59, 47, .1); }
 html { scroll-behavior: smooth; }
+
 body {
-  min-height: 100vh; overflow-x: hidden; color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--ink);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  background: linear-gradient(rgba(244, 250, 247, .52), rgba(235, 244, 240, .62)), url("/food-glass-bg.avif") center / cover fixed;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(155, 231, 181, .18), transparent 34%),
+    linear-gradient(rgba(246, 251, 248, .56), rgba(234, 246, 239, .68)),
+    url("/food-glass-bg.avif") center / cover fixed;
 }
+
 img { max-width: 100%; display: block; }
 
 @layer components {
   .app-content { min-height: 100vh; }
-  .app-canvas { min-height: calc(100vh - 82px); padding: clamp(1.5rem, 4vw, 4rem) 1rem; }
+
+  .app-canvas {
+    min-height: calc(100vh - 82px);
+    padding: clamp(1.5rem, 4vw, 4rem) 1rem;
+  }
+
   .glass-surface {
     background: linear-gradient(135deg, rgba(255,255,255,.48), rgba(255,255,255,.18));
     border: 1px solid var(--glass-border);
@@ -28,13 +47,55 @@ img { max-width: 100%; display: block; }
     backdrop-filter: blur(28px) saturate(145%);
     -webkit-backdrop-filter: blur(28px) saturate(145%);
   }
+
   .glass-panel { @apply glass-surface rounded-[2rem]; }
-  .glass-button { @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-200; }
-  .glass-button:hover { transform: translateY(-1px); filter: brightness(1.05); }
-  .glass-button-primary { @apply glass-button text-white; background: linear-gradient(135deg, #08795f, #42b98d); box-shadow: 0 10px 22px rgba(8,121,95,.22), inset 0 1px 0 rgba(255,255,255,.25); }
-  .glass-button-secondary { @apply glass-button glass-surface text-slate-700; }
-  .glass-input { @apply w-full rounded-2xl px-4 py-3 text-slate-800 outline-none transition; background: rgba(255,255,255,.34); border: 1px solid rgba(255,255,255,.62); }
-  .glass-input:focus { box-shadow: 0 0 0 4px rgba(66,185,141,.17); }
-  .eyebrow { @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em]; color: #07634e; background: rgba(234, 255, 246, .46); border: 1px solid rgba(255,255,255,.6); }
+
+  .glass-button {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-200;
+  }
+
+  .glass-button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+  }
+
+  .glass-button-primary {
+    @apply glass-button text-white;
+    background: linear-gradient(135deg, var(--brand-800), var(--brand-500));
+    box-shadow:
+      0 10px 22px rgba(11,95,74,.22),
+      inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  .glass-button-secondary {
+    @apply glass-button glass-surface text-slate-700;
+  }
+
+  .glass-input {
+    @apply w-full rounded-2xl px-4 py-3 text-slate-800 outline-none transition;
+    background: rgba(255,255,255,.34);
+    border: 1px solid rgba(255,255,255,.62);
+  }
+
+  .glass-input:focus {
+    box-shadow: 0 0 0 4px rgba(40,168,121,.17);
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em];
+    color: var(--brand-800);
+    background: rgba(232, 248, 239, .58);
+    border: 1px solid rgba(255,255,255,.6);
+  }
+
+  .brand-mark-glow {
+    filter: drop-shadow(0 5px 14px rgba(40,168,121,.18));
+  }
 }
-@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after {
+    animation-duration:.01ms!important;
+    transition-duration:.01ms!important;
+  }
+}
