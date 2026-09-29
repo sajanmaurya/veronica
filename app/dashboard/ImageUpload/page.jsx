@@ -41,6 +41,7 @@ const ImageUpload = () => {
         JSON.stringify({
           diseases: profile?.diseases || null,
           allergies: profile?.allergies || null,
+          dietaryPreferences: profile?.dietaryPreferences || null,
         })
       );
 
