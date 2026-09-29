@@ -1,5 +1,68 @@
-const OFF_BASE_URL = "https://world.openfoodfacts.org";\nconst OFF_USER_AGENT = "Veronica/1.0 (healthy alternatives; https://veronica-steel.vercel.app)";\n\nconst CATEGORY_WEIGHTS = {\n  beverages: { sugar: 0.35, sodium: 0.2, saturatedFat: 0.15, calories: 0.2, fiber: 0.05, protein: 0.05 },\n  snacks: { sodium: 0.3, saturatedFat: 0.25, calories: 0.2, sugar: 0.15, fiber: 0.05, protein: 0.05 },\n  chips: { sodium: 0.35, saturatedFat: 0.3, calories: 0.2, sugar: 0.05, fiber: 0.05, protein: 0.05 },\n  biscuits: { sugar: 0.3, saturatedFat: 0.3, calories: 0.15, sodium: 0.1, fiber: 0.1, protein: 0.05 },\n  cereals: { sugar: 0.3, fiber: 0.25, protein: 0.15, saturatedFat: 0.1, sodium: 0.1, calories: 0.1 },\n  yogurts: { sugar: 0.3, protein: 0.2, saturatedFat: 0.15, calories: 0.15, fiber: 0.1, sodium: 0.1 },\n  dairy: { sugar: 0.25, saturatedFat: 0.25, protein: 0.2, calories: 0.15, sodium: 0.1, fiber: 0.05 },\n  sauces: { sodium: 0.4, sugar: 0.25, calories: 0.1, saturatedFat: 0.1, fiber: 0.1, protein: 0.05 },\n  frozen: { sodium: 0.3, saturatedFat: 0.25, calories: 0.2, sugar: 0.1, protein: 0.1, fiber: 0.05 },\n  default: { sugar: 0.2, sodium: 0.2, saturatedFat: 0.2, calories: 0.15, fiber: 0.15, protein: 0.1 },\n};\n\nfunction finite(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }\n\nfunction parseServingGrams(value) {\n  const match = String(value || "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(g|gram|grams)\b/i);\n  return match ? Number(match[1]) : null;\n}\n\nfunction currentPer100g(product) {\n  const direct = product?.nutrients_per_100g || product?.nutriments_per_100g;\n  if (direct && typeof direct === "object") {\n    return {\n      sugar: finite(direct.sugars ?? direct.sugar),\n      sodium: finite(direct.sodium),\n      saturatedFat: finite(direct.saturated_fat),\n      transFat: finite(direct.trans_fat),\n      calories: finite(direct.energy_kcal ?? direct["energy-kcal"]),\n      fiber: finite(direct.fiber),\n      protein: finite(direct.proteins ?? direct.protein),\n    };\n  }\n\n  const nutrition = product?.nutrition || {};\n  const servingGrams = parseServingGrams(nutrition.serving_size);\n  const basis = nutrition.label_basis;\n  const values = {\n    sugar: finite(nutrition.total_sugar_g),\n    sodium: finite(nutrition.sodium_mg),\n    saturatedFat: finite(nutrition.saturated_fat_g),\n    transFat: finite(nutrition.trans_fat_g),\n    calories: finite(nutrition.calories),\n    fiber: finite(nutrition.fiber_g),\n    protein: finite(nutrition.protein_g),\n  };\n  if (basis === "per_100g") return values;\n  if (basis === "per_serving" && servingGrams && servingGrams > 0) {\n    const factor = 100 / servingGrams;\n    return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value == null ? null : Math.round(value * factor * 100) / 100]));\n  }\n  return null;\n}\n\nfunction categoryTag(product) {\n  const source = product?.categories || product?.product_category || "";
-  const categories = String(source).split(",").map((item) => item.trim()).filter(Boolean);\n  const useful = categories.map((item) => item.replace(/^en:/i, "")).filter((item) => item && item !== "foods");\n  return useful[useful.length - 1] || useful[useful.length - 2] || null;\n}\n\nfunction normalizeCategoryTag(value) {
+const OFF_BASE_URL = "https://world.openfoodfacts.org";
+const OFF_USER_AGENT = "Veronica/1.0 (healthy alternatives; https://veronica-steel.vercel.app)";
+
+const CATEGORY_WEIGHTS = {
+  beverages: { sugar: 0.35, sodium: 0.2, saturatedFat: 0.15, calories: 0.2, fiber: 0.05, protein: 0.05 },
+  snacks: { sodium: 0.3, saturatedFat: 0.25, calories: 0.2, sugar: 0.15, fiber: 0.05, protein: 0.05 },
+  chips: { sodium: 0.35, saturatedFat: 0.3, calories: 0.2, sugar: 0.05, fiber: 0.05, protein: 0.05 },
+  biscuits: { sugar: 0.3, saturatedFat: 0.3, calories: 0.15, sodium: 0.1, fiber: 0.1, protein: 0.05 },
+  cereals: { sugar: 0.3, fiber: 0.25, protein: 0.15, saturatedFat: 0.1, sodium: 0.1, calories: 0.1 },
+  yogurts: { sugar: 0.3, protein: 0.2, saturatedFat: 0.15, calories: 0.15, fiber: 0.1, sodium: 0.1 },
+  dairy: { sugar: 0.25, saturatedFat: 0.25, protein: 0.2, calories: 0.15, sodium: 0.1, fiber: 0.05 },
+  sauces: { sodium: 0.4, sugar: 0.25, calories: 0.1, saturatedFat: 0.1, fiber: 0.1, protein: 0.05 },
+  frozen: { sodium: 0.3, saturatedFat: 0.25, calories: 0.2, sugar: 0.1, protein: 0.1, fiber: 0.05 },
+  default: { sugar: 0.2, sodium: 0.2, saturatedFat: 0.2, calories: 0.15, fiber: 0.15, protein: 0.1 },
+};
+
+function finite(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }
+
+function parseServingGrams(value) {
+  const match = String(value || "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(g|gram|grams)\b/i);
+  return match ? Number(match[1]) : null;
+}
+
+function currentPer100g(product) {
+  const direct = product?.nutrients_per_100g || product?.nutriments_per_100g;
+  if (direct && typeof direct === "object") {
+    return {
+      sugar: finite(direct.sugars ?? direct.sugar),
+      sodium: finite(direct.sodium),
+      saturatedFat: finite(direct.saturated_fat),
+      transFat: finite(direct.trans_fat),
+      calories: finite(direct.energy_kcal ?? direct["energy-kcal"]),
+      fiber: finite(direct.fiber),
+      protein: finite(direct.proteins ?? direct.protein),
+    };
+  }
+
+  const nutrition = product?.nutrition || {};
+  const servingGrams = parseServingGrams(nutrition.serving_size);
+  const basis = nutrition.label_basis;
+  const values = {
+    sugar: finite(nutrition.total_sugar_g),
+    sodium: finite(nutrition.sodium_mg),
+    saturatedFat: finite(nutrition.saturated_fat_g),
+    transFat: finite(nutrition.trans_fat_g),
+    calories: finite(nutrition.calories),
+    fiber: finite(nutrition.fiber_g),
+    protein: finite(nutrition.protein_g),
+  };
+  if (basis === "per_100g") return values;
+  if (basis === "per_serving" && servingGrams && servingGrams > 0) {
+    const factor = 100 / servingGrams;
+    return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value == null ? null : Math.round(value * factor * 100) / 100]));
+  }
+  return null;
+}
+
+function categoryTag(product) {
+  const source = product?.categories || product?.product_category || "";
+  const categories = String(source).split(",").map((item) => item.trim()).filter(Boolean);
+  const useful = categories.map((item) => item.replace(/^en:/i, "")).filter((item) => item && item !== "foods");
+  return useful[useful.length - 1] || useful[useful.length - 2] || null;
+}
+
+function normalizeCategoryTag(value) {
   const raw = String(value || "").toLowerCase().trim().replace(/^en:/, "");
   const aliases = {
     "potato chips": "chips-and-fries",
@@ -20,4 +83,128 @@ const OFF_BASE_URL = "https://world.openfoodfacts.org";\nconst OFF_USER_AGENT = 
   return aliases[raw] || raw;
 }
 
-function categoryBucket(product) {\n  const text = [product?.categories, product?.pnns_groups_1, product?.pnns_groups_2, product?.product_name].filter(Boolean).join(" ").toLowerCase();\n  if (/chip|crisp|snack/.test(text)) return "snacks";\n  if (/biscuit|cookie|cracker/.test(text)) return "biscuits";\n  if (/cereal|muesli|granola|breakfast/.test(text)) return "cereals";\n  if (/yogurt|yoghurt|curd/.test(text)) return "yogurts";\n  if (/milk|cheese|dairy/.test(text)) return "dairy";\n  if (/juice|soda|soft drink|beverage|drink/.test(text)) return "beverages";\n  if (/sauce|ketchup|dressing/.test(text)) return "sauces";\n  if (/frozen/.test(text)) return "frozen";\n  return "default";\n}\n\nfunction normalizedCandidate(product) {\n  const nutrients = product?.nutriments || {};\n  return {\n    barcode: product?.code || null,\n    name: product?.product_name || product?.product_name_en || "Unknown product",\n    brand: product?.brands || "",\n    image: product?.image_front_url || product?.image_url || null,\n    nutriscore: product?.nutriscore_grade || null,\n    categories: Array.isArray(product?.categories_tags_en) ? product.categories_tags_en : [],\n    ingredients: product?.ingredients_text || product?.ingredients_text_en || "",\n    allergens: [...(Array.isArray(product?.allergens_tags) ? product.allergens_tags : []), ...(Array.isArray(product?.traces_tags) ? product.traces_tags : [])].join(" "),\n    nutrients: {\n      sugar: finite(nutrients.sugars_100g),\n      sodium: finite(nutrients.sodium_100g),\n      saturatedFat: finite(nutrients["saturated-fat_100g"]),\n      transFat: finite(nutrients["trans-fat_100g"]),\n      calories: finite(nutrients["energy-kcal_100g"]),\n      fiber: finite(nutrients.fiber_100g),\n      protein: finite(nutrients.proteins_100g),\n    },\n  };\n}\n\nfunction preferenceConflict(candidate, profile) {\n  const text = [candidate.ingredients, candidate.allergens].join(" ").toLowerCase();\n  const preferences = String(profile?.dietaryPreferences || "").toLowerCase();\n  const allergies = String(profile?.allergies || "").split(/[,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);\n  const known = {\n    peanut: /peanut|groundnut/, nuts: /almond|cashew|hazelnut|walnut|pistachio|nut/,\n    milk: /milk|whey|casein|lactose/, egg: /egg|albumin/, soy: /soy|soya/,\n    gluten: /wheat|barley|rye|malt|gluten/, fish: /fish|anchovy|tuna|salmon/,\n    shellfish: /shrimp|prawn|crab|lobster|shellfish/,\n  };\n  for (const allergy of allergies) {\n    const pattern = known[allergy];\n    if (pattern ? pattern.test(text) : text.includes(allergy)) return true;\n  }\n  if (/vegan/.test(preferences) && /milk|whey|casein|gelatin|egg|honey|meat|chicken|fish|anchovy/.test(text)) return true;\n  if (/vegetarian/.test(preferences) && /gelatin|meat|chicken|beef|pork|fish|anchovy/.test(text)) return true;\n  if (/gluten[- ]?free/.test(preferences) && /wheat|barley|rye|malt|gluten/.test(text)) return true;\n  return false;\n}\n\nfunction scoreCandidate(current, candidate, bucket) {\n  const weights = CATEGORY_WEIGHTS[bucket] || CATEGORY_WEIGHTS.default;\n  let score = 50;\n  const reasons = [];\n  for (const [key, label] of [["sugar", "sugar"], ["sodium", "sodium"], ["saturatedFat", "saturated fat"], ["calories", "calories"]]) {\n    const a = current[key]; const b = candidate.nutrients[key];\n    if (a == null || b == null || a <= 0) continue;\n    const improvement = (a - b) / a;\n    if (improvement > 0.05) {\n      score += Math.min(12, improvement * 30 * (weights[key] || 0.1));\n      reasons.push({ key, text: Math.round(improvement * 100) + "% less " + label, improvement: Math.round(improvement * 100) });\n    } else if (improvement < -0.1) {\n      score -= Math.min(10, Math.abs(improvement) * 22 * (weights[key] || 0.1));\n    }\n  }\n  for (const [key, label] of [["fiber", "fiber"], ["protein", "protein"]]) {\n    const a = current[key]; const b = candidate.nutrients[key];\n    if (a == null || b == null || a <= 0) continue;\n    const improvement = (b - a) / a;\n    if (improvement > 0.1) {\n      score += Math.min(8, improvement * 18 * (weights[key] || 0.1));\n      reasons.push({ key, text: Math.round(improvement * 100) + "% more " + label, improvement: Math.round(improvement * 100) });\n    }\n  }\n  if (candidate.nutriscore && /^[abcde]$/i.test(candidate.nutriscore)) {\n    const currentGrade = String(current.nutriscore || "").toLowerCase();\n    if (currentGrade && candidate.nutriscore.toLowerCase() < currentGrade) {\n      score += 8;\n      reasons.push({ key: "nutriscore", text: "Nutri-Score " + candidate.nutriscore.toUpperCase(), improvement: null });\n    }\n  }\n  return { score: Math.max(0, Math.min(100, Math.round(score))), reasons: reasons.slice(0, 3) };\n}\n\nexport default async function handler(req, res) {\n  if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });\n  try {\n    const { product, profile } = req.body || {};\n    if (!product) return res.status(400).json({ success: false, message: "Product data is required." });\n    const current = currentPer100g(product);\n    if (!current) return res.status(200).json({ success: true, data: { alternatives: [], message: "Not enough nutrition information is available to compare alternatives reliably." } });\n    const category = normalizeCategoryTag(categoryTag(product));\n    if (!category) return res.status(200).json({ success: true, data: { alternatives: [], message: "Veronica could not identify a sufficiently specific product category." } });\n\n    const params = new URLSearchParams({\n      categories_tags_en: category, page: "1", page_size: "24", sort_by: "popularity_key",\n      fields: "code,product_name,product_name_en,brands,image_front_url,nutriscore_grade,nutriments,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,categories_tags_en",\n    });\n    const response = await fetch(OFF_BASE_URL + "/api/v2/search?" + params.toString(), { headers: { "User-Agent": OFF_USER_AGENT } });\n    if (!response.ok) throw new Error("Open Food Facts search failed with HTTP " + response.status);\n    const payload = await response.json();\n    const candidates = Array.isArray(payload?.products) ? payload.products.map(normalizedCandidate) : [];\n    const currentBarcode = String(product?.barcode || product?.code || "");\n    const bucket = categoryBucket(product);\n    const ranked = candidates\n      .filter((candidate) => candidate.barcode && candidate.barcode !== currentBarcode)\n      .filter((candidate) => candidate.name && candidate.name !== "Unknown product")\n      .filter((candidate) => Object.values(candidate.nutrients).some((value) => value != null))\n      .filter((candidate) => !preferenceConflict(candidate, profile))\n      .map((candidate) => ({ ...candidate, ...scoreCandidate(current, candidate, bucket) }))\n      .filter((candidate) => candidate.reasons.length > 0)\n      .sort((a, b) => b.score - a.score)\n      .slice(0, 3);\n    return res.status(200).json({ success: true, data: { category, alternatives: ranked, message: ranked.length ? "These products have comparable category data and measurable differences from the scanned product." : "No comparable alternatives with enough nutrition data were found." } });\n  } catch (error) {\n    console.error("Healthy alternatives failed:", error);\n    return res.status(500).json({ success: false, message: "Unable to find product alternatives right now." });\n  }\n}
+function categoryBucket(product) {
+  const text = [product?.categories, product?.pnns_groups_1, product?.pnns_groups_2, product?.product_name].filter(Boolean).join(" ").toLowerCase();
+  if (/chip|crisp|snack/.test(text)) return "snacks";
+  if (/biscuit|cookie|cracker/.test(text)) return "biscuits";
+  if (/cereal|muesli|granola|breakfast/.test(text)) return "cereals";
+  if (/yogurt|yoghurt|curd/.test(text)) return "yogurts";
+  if (/milk|cheese|dairy/.test(text)) return "dairy";
+  if (/juice|soda|soft drink|beverage|drink/.test(text)) return "beverages";
+  if (/sauce|ketchup|dressing/.test(text)) return "sauces";
+  if (/frozen/.test(text)) return "frozen";
+  return "default";
+}
+
+function normalizedCandidate(product) {
+  const nutrients = product?.nutriments || {};
+  return {
+    barcode: product?.code || null,
+    name: product?.product_name || product?.product_name_en || "Unknown product",
+    brand: product?.brands || "",
+    image: product?.image_front_url || product?.image_url || null,
+    nutriscore: product?.nutriscore_grade || null,
+    categories: Array.isArray(product?.categories_tags_en) ? product.categories_tags_en : [],
+    ingredients: product?.ingredients_text || product?.ingredients_text_en || "",
+    allergens: [...(Array.isArray(product?.allergens_tags) ? product.allergens_tags : []), ...(Array.isArray(product?.traces_tags) ? product.traces_tags : [])].join(" "),
+    nutrients: {
+      sugar: finite(nutrients.sugars_100g),
+      sodium: finite(nutrients.sodium_100g),
+      saturatedFat: finite(nutrients["saturated-fat_100g"]),
+      transFat: finite(nutrients["trans-fat_100g"]),
+      calories: finite(nutrients["energy-kcal_100g"]),
+      fiber: finite(nutrients.fiber_100g),
+      protein: finite(nutrients.proteins_100g),
+    },
+  };
+}
+
+function preferenceConflict(candidate, profile) {
+  const text = [candidate.ingredients, candidate.allergens].join(" ").toLowerCase();
+  const preferences = String(profile?.dietaryPreferences || "").toLowerCase();
+  const allergies = String(profile?.allergies || "").split(/[,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const known = {
+    peanut: /peanut|groundnut/, nuts: /almond|cashew|hazelnut|walnut|pistachio|nut/,
+    milk: /milk|whey|casein|lactose/, egg: /egg|albumin/, soy: /soy|soya/,
+    gluten: /wheat|barley|rye|malt|gluten/, fish: /fish|anchovy|tuna|salmon/,
+    shellfish: /shrimp|prawn|crab|lobster|shellfish/,
+  };
+  for (const allergy of allergies) {
+    const pattern = known[allergy];
+    if (pattern ? pattern.test(text) : text.includes(allergy)) return true;
+  }
+  if (/vegan/.test(preferences) && /milk|whey|casein|gelatin|egg|honey|meat|chicken|fish|anchovy/.test(text)) return true;
+  if (/vegetarian/.test(preferences) && /gelatin|meat|chicken|beef|pork|fish|anchovy/.test(text)) return true;
+  if (/gluten[- ]?free/.test(preferences) && /wheat|barley|rye|malt|gluten/.test(text)) return true;
+  return false;
+}
+
+function scoreCandidate(current, candidate, bucket) {
+  const weights = CATEGORY_WEIGHTS[bucket] || CATEGORY_WEIGHTS.default;
+  let score = 50;
+  const reasons = [];
+  for (const [key, label] of [["sugar", "sugar"], ["sodium", "sodium"], ["saturatedFat", "saturated fat"], ["calories", "calories"]]) {
+    const a = current[key]; const b = candidate.nutrients[key];
+    if (a == null || b == null || a <= 0) continue;
+    const improvement = (a - b) / a;
+    if (improvement > 0.05) {
+      score += Math.min(12, improvement * 30 * (weights[key] || 0.1));
+      reasons.push({ key, text: Math.round(improvement * 100) + "% less " + label, improvement: Math.round(improvement * 100) });
+    } else if (improvement < -0.1) {
+      score -= Math.min(10, Math.abs(improvement) * 22 * (weights[key] || 0.1));
+    }
+  }
+  for (const [key, label] of [["fiber", "fiber"], ["protein", "protein"]]) {
+    const a = current[key]; const b = candidate.nutrients[key];
+    if (a == null || b == null || a <= 0) continue;
+    const improvement = (b - a) / a;
+    if (improvement > 0.1) {
+      score += Math.min(8, improvement * 18 * (weights[key] || 0.1));
+      reasons.push({ key, text: Math.round(improvement * 100) + "% more " + label, improvement: Math.round(improvement * 100) });
+    }
+  }
+  if (candidate.nutriscore && /^[abcde]$/i.test(candidate.nutriscore)) {
+    const currentGrade = String(current.nutriscore || "").toLowerCase();
+    if (currentGrade && candidate.nutriscore.toLowerCase() < currentGrade) {
+      score += 8;
+      reasons.push({ key: "nutriscore", text: "Nutri-Score " + candidate.nutriscore.toUpperCase(), improvement: null });
+    }
+  }
+  return { score: Math.max(0, Math.min(100, Math.round(score))), reasons: reasons.slice(0, 3) };
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
+  try {
+    const { product, profile } = req.body || {};
+    if (!product) return res.status(400).json({ success: false, message: "Product data is required." });
+    const current = currentPer100g(product);
+    if (!current) return res.status(200).json({ success: true, data: { alternatives: [], message: "Not enough nutrition information is available to compare alternatives reliably." } });
+    const category = normalizeCategoryTag(categoryTag(product));
+    if (!category) return res.status(200).json({ success: true, data: { alternatives: [], message: "Veronica could not identify a sufficiently specific product category." } });
+
+    const params = new URLSearchParams({
+      categories_tags_en: category, page: "1", page_size: "24", sort_by: "popularity_key",
+      fields: "code,product_name,product_name_en,brands,image_front_url,nutriscore_grade,nutriments,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,categories_tags_en",
+    });
+    const response = await fetch(OFF_BASE_URL + "/api/v2/search?" + params.toString(), { headers: { "User-Agent": OFF_USER_AGENT } });
+    if (!response.ok) throw new Error("Open Food Facts search failed with HTTP " + response.status);
+    const payload = await response.json();
+    const candidates = Array.isArray(payload?.products) ? payload.products.map(normalizedCandidate) : [];
+    const currentBarcode = String(product?.barcode || product?.code || "");
+    const bucket = categoryBucket(product);
+    const ranked = candidates
+      .filter((candidate) => candidate.barcode && candidate.barcode !== currentBarcode)
+      .filter((candidate) => candidate.name && candidate.name !== "Unknown product")
+      .filter((candidate) => Object.values(candidate.nutrients).some((value) => value != null))
+      .filter((candidate) => !preferenceConflict(candidate, profile))
+      .map((candidate) => ({ ...candidate, ...scoreCandidate(current, candidate, bucket) }))
+      .filter((candidate) => candidate.reasons.length > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+    return res.status(200).json({ success: true, data: { category, alternatives: ranked, message: ranked.length ? "These products have comparable category data and measurable differences from the scanned product." : "No comparable alternatives with enough nutrition data were found." } });
+  } catch (error) {
+    console.error("Healthy alternatives failed:", error);
+    return res.status(500).json({ success: false, message: "Unable to find product alternatives right now." });
+  }
+}
