@@ -134,7 +134,14 @@ export default function Header() {
                 <span className="text-xs font-semibold text-slate-600">
                   Account
                 </span>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton
+                  afterSignOutUrl="/"
+                  userProfileProps={{
+                    additionalOAuthScopes: {
+                      google: ["https://www.googleapis.com/auth/drive.appdata"],
+                    },
+                  }}
+                />
               </div>
             </SignedIn>
           </nav>
