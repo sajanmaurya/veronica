@@ -69,8 +69,24 @@ const ImageUpload = () => {
     } catch (error) {
       console.error("Camera access error:", error);
       setCameraActive(false);
+
+      const errorCode = error?.name || "UnknownError";
+      const messages = {
+        NotAllowedError:
+          "Camera permission is blocked. Allow camera access for Veronica in your browser settings, then try again.",
+        NotFoundError:
+          "No camera was found on this device. You can use the device camera button or upload an image instead.",
+        NotReadableError:
+          "The camera is currently unavailable. Close other apps using the camera, then try again.",
+        OverconstrainedError:
+          "This camera does not support the requested settings. Try again or use the device camera button.",
+        SecurityError:
+          "The browser blocked camera access for security reasons. Check the site's camera permission and try again.",
+      };
+
       setCameraError(
-        "Camera access was blocked or unavailable. Please allow camera permission, or use the gallery below."
+        messages[errorCode] ||
+          "Live camera access is unavailable. You can use the device camera button or upload an image instead."
       );
     }
   };
@@ -204,6 +220,23 @@ const ImageUpload = () => {
               onChange={handleImageUpload}
             />
           </label>
+
+          {/* Native device-camera fallback. This can work when live camera access is blocked. */}
+          {cameraError && !image && (
+            <label className="glass-surface flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-5 py-3 text-center transition hover:-translate-y-0.5 hover:bg-white/80">
+              <span className="text-lg" aria-hidden="true">📷</span>
+              <span className="text-sm font-bold text-slate-800">
+                Use device camera
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+            </label>
+          )}
 
           {/* Primary camera */}
           {!image ? (
