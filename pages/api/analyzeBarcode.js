@@ -19,8 +19,27 @@ const schema = {
     },
     summary: { type: "string" },
     user_specific_summary: { type: "string" },
+    ingredient_explanations: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: { type: "string" },
+          purpose: { type: "string" },
+          explanation: { type: "string" },
+        },
+        required: ["name", "purpose", "explanation"],
+      },
+    },
   },
-  required: ["rating", "harmful_ingredients", "summary", "user_specific_summary"],
+  required: [
+    "rating",
+    "harmful_ingredients",
+    "summary",
+    "user_specific_summary",
+    "ingredient_explanations",
+  ],
 };
 
 function cleanRating(value) {
@@ -62,7 +81,9 @@ Consider sugar, saturated fat, sodium, protein, fiber, calories, ingredients, ad
 
 For harmful_ingredients, list only ingredients or nutritional characteristics that are actually supported by the supplied product data. Explain the possible concern briefly. Return an empty array when nothing significant is supported.
 
-For user_specific_summary, use diseases and allergies only as context and avoid medical diagnosis. If the profile is empty, return an empty string.
+For user_specific_summary, use diseases, allergies, and dietary preferences only as context and avoid medical diagnosis. If the profile is empty, return an empty string.
+
+For ingredient_explanations, explain only additives, preservatives, sweeteners, colors, emulsifiers, flavor enhancers, or other notable ingredients actually present in the supplied ingredient list. Keep each explanation to one short sentence. Return an empty array when there are no notable ingredients.
 
 PRODUCT DATA:
 ${JSON.stringify(product)}
@@ -71,6 +92,7 @@ USER PROFILE:
 ${JSON.stringify({
   diseases: profile?.diseases || "",
   allergies: profile?.allergies || "",
+  dietaryPreferences: profile?.dietaryPreferences || "",
 })}
 `;
 
@@ -140,6 +162,9 @@ ${JSON.stringify({
       data: {
         ...data,
         ingredients,
+        nutriscore_grade: product.nutriscore_grade || null,
+        nutriscore_score:
+          product.nutriscore_score != null ? Number(product.nutriscore_score) : null,
         rating: cleanRating(data.rating),
       },
     });
