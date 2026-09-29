@@ -10,8 +10,8 @@ const ImageUpload = () => {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [aiData, setAiData] = useState(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
+  const [cameraActive, setCameraActive] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -21,6 +21,7 @@ const ImageUpload = () => {
     const file = event.target.files?.[0];
 
     if (file) {
+      stopCamera();
       setImage(file);
       setPreview(URL.createObjectURL(file));
       setAiData(null);
@@ -30,6 +31,7 @@ const ImageUpload = () => {
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    setCameraActive(false);
 
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -43,6 +45,7 @@ const ImageUpload = () => {
     }
 
     setCameraError("");
+    setCameraActive(false);
 
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -57,6 +60,7 @@ const ImageUpload = () => {
       });
 
       streamRef.current = stream;
+      setCameraActive(true);
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -64,6 +68,7 @@ const ImageUpload = () => {
       }
     } catch (error) {
       console.error("Camera access error:", error);
+      setCameraActive(false);
       setCameraError(
         "Camera access was blocked or unavailable. Please allow camera permission, or use the gallery below."
       );
@@ -76,6 +81,7 @@ const ImageUpload = () => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+      setCameraActive(false);
     };
   }, []);
 
@@ -201,59 +207,78 @@ const ImageUpload = () => {
           </label>
 
           {/* Primary camera */}
-          <div className="w-full overflow-hidden rounded-3xl border border-white/40 bg-slate-950 shadow-xl">
-            <div className="flex items-center justify-between px-5 py-3 text-white">
-              <div>
-                <p className="text-sm font-bold">Camera</p>
-                <p className="mt-0.5 text-xs text-slate-300">
-                  Point your camera at the ingredients or Nutrition Facts.
-                </p>
+          {!image ? (
+            <div className="w-full overflow-hidden rounded-3xl border border-white/40 bg-slate-950 shadow-xl">
+              <div className="flex items-center justify-between px-5 py-3 text-white">
+                <div>
+                  <p className="text-sm font-bold">Camera</p>
+                  <p className="mt-0.5 text-xs text-slate-300">
+                    Point your camera at the ingredients or Nutrition Facts.
+                  </p>
+                </div>
+                <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                  Live
+                </span>
               </div>
-              <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                Live
-              </span>
+
+              <div className="relative aspect-[4/3] bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-full w-full object-cover"
+                />
+
+                {!cameraActive && !cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center text-sm text-white/80">
+                    Starting camera…
+                  </div>
+                )}
+
+                {cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6 text-center text-sm leading-6 text-white">
+                    {cameraError}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4">
+                <button
+                  type="button"
+                  onClick={capturePhoto}
+                  disabled={Boolean(cameraError) || !cameraActive}
+                  className="w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  📷 Capture photo
+                </button>
+
+                {cameraError && (
+                  <button
+                    type="button"
+                    onClick={openCamera}
+                    className="mt-2 w-full rounded-xl bg-white/10 py-3 text-sm font-semibold text-white hover:bg-white/20"
+                  >
+                    ↻ Restart camera
+                  </button>
+                )}
+              </div>
             </div>
-
-            <div className="relative aspect-[4/3] bg-black">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-cover"
-              />
-
-              {!streamRef.current && !cameraError && (
-                <div className="absolute inset-0 flex items-center justify-center text-sm text-white/80">
-                  Starting camera…
-                </div>
-              )}
-
-              {cameraError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6 text-center text-sm leading-6 text-white">
-                  {cameraError}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 p-4">
-              <button
-                type="button"
-                onClick={openCamera}
-                className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white hover:bg-white/20"
-              >
-                ↻ Restart camera
-              </button>
-              <button
-                type="button"
-                onClick={capturePhoto}
-                disabled={Boolean(cameraError) || !streamRef.current}
-                className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                📷 Capture photo
-              </button>
-            </div>
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setImage(null);
+                setPreview(null);
+                setAiData(null);
+                setCameraError("");
+                openCamera();
+              }}
+              className="w-full rounded-xl bg-white/60 px-5 py-3 text-sm font-bold text-slate-800 transition hover:bg-white/80"
+            >
+              ↻ Retake photo
+            </button>
+          )}
 
           {/* Analyze Button */}
           <button
