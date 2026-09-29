@@ -181,8 +181,7 @@ const ImageUpload = () => {
     <main className="app-canvas"><div className="mx-auto flex w-full max-w-3xl flex-col items-center">
 
       {!aiData && (
-        <div className="glass-panel flex w-full max-w-xl flex-col items-center gap-5 p-5 sm:p-8"><div className="w-full text-center"><p className="eyebrow">Visual analysis</p><h1 className="mt-4 text-3xl font-semibold tracking-[-.04em] text-slate-900">Read a food label</h1><p className="mt-2 text-sm leading-6 text-slate-600">Upload a clear photo of ingredients or nutrition facts.</p></div>
-
+        <div className="glass-panel flex w-full max-w-xl flex-col items-center gap-5 p-5 sm:p-8">
           {/* Image Preview */}
           {preview && (
             <img
