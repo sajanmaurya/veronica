@@ -285,28 +285,38 @@ export default function ProductSummary({
     <section className="app-canvas pt-6">
       <div className="mx-auto max-w-4xl">
         <div className="glass-panel p-5 sm:p-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="eyebrow">Analysis complete</p>
-              <h1 className="mt-4 text-3xl font-semibold tracking-[-.04em] text-slate-900">
-                {productName || aiData.product_name || "Unknown product"}
-              </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                A practical look at what is inside.
-              </p>
+          {/* Compact product header */}
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              {(imageFrontUrl || imageNutritionImage) && (
+                <img
+                  src={imageFrontUrl || imageNutritionImage}
+                  alt="Product"
+                  className="h-20 w-20 shrink-0 rounded-2xl border border-white/70 bg-white/70 object-contain p-2"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="eyebrow">Analysis complete</p>
+                <h1 className="mt-2 truncate text-2xl font-semibold tracking-[-.04em] text-slate-900 sm:text-3xl">
+                  {productName || aiData.product_name || "Unknown product"}
+                </h1>
+                <p className="mt-1 text-sm text-slate-600">
+                  Quick, practical food-label analysis.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 px-2 text-center text-white shadow-lg shadow-emerald-900/20">
+            <div className="flex shrink-0 items-center gap-3 self-start sm:self-auto">
+              <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-emerald-700 px-2 text-center text-white shadow-lg shadow-emerald-900/20">
                 <span className="text-3xl font-semibold leading-none">{healthRating}</span>
                 <span className="mt-1 text-[8px] font-bold uppercase leading-3 tracking-[0.08em] text-emerald-100">
                   Health rating
                   <span className="block">/ 10</span>
                 </span>
               </div>
-              <div className="text-left">
-                <p className="text-3xl font-bold text-slate-900">{scoreGrade}</p>
-                <p className="text-xs font-semibold text-slate-500">{scoreLabel}</p>
+              <div>
+                <p className="text-3xl font-bold leading-none text-slate-900">{scoreGrade}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{scoreLabel}</p>
                 {nutriScoreGrade && nutriScoreGrade !== "UNKNOWN" && (
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     Nutri-Score {nutriScoreGrade}
@@ -316,82 +326,104 @@ export default function ProductSummary({
             </div>
           </div>
 
-          {(imageFrontUrl || imageNutritionImage) && (
-            <div className="mt-7 flex flex-wrap gap-3">
-              {[imageFrontUrl, imageNutritionImage]
-                .filter(Boolean)
-                .map((src, index) => (
-                  <img
-                    key={src}
-                    src={src}
-                    alt={index ? "Nutrition label" : "Product"}
-                    className="h-32 w-32 rounded-2xl border border-white/70 bg-white/50 object-contain p-2"
-                  />
-                ))}
-            </div>
-          )}
-
-          <div className="mt-8 grid gap-5">
-            <div className="rounded-2xl bg-white/45 p-5">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mt-7 grid gap-5">
+            {/* What matters most */}
+            <div className="rounded-2xl bg-white/55 p-5">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
-                    Nutrition per serving
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {nutrition.serving_size
-                      ? `Serving size: ${nutrition.serving_size}`
-                      : "Values shown only when readable from the label."}
+                  <p className="text-[11px] font-bold uppercase tracking-[.14em] text-emerald-700">
+                    What matters most
                   </p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-[-.03em] text-slate-900">
+                    Nutrition snapshot
+                  </h2>
                 </div>
-                <div className="flex flex-col items-start gap-2 sm:items-end">
-                  {nutrition.servings_per_container != null && (
-                    <p className="text-xs font-medium text-slate-500">
-                      {nutrition.servings_per_container} servings/package
-                    </p>
-                  )}
-                  {nutritionValidation.status && (
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${nutritionValidation.status === "verified" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
-                    >
-                      {nutritionValidation.status === "verified"
-                        ? "Label data checked"
-                        : "Needs label verification"}
-                    </span>
-                  )}
-                </div>
+                {nutrition.serving_size && (
+                  <span className="rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-500">
+                    {nutrition.serving_size}
+                  </span>
+                )}
               </div>
 
-              {nutritionValidation.message && (
-                <p
-                  className={`mt-3 rounded-xl px-4 py-3 text-xs leading-5 ${nutritionValidation.status === "verified" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
-                >
+              {nutritionValidation.message && nutritionValidation.status !== "verified" && (
+                <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                   {nutritionValidation.message}
                 </p>
               )}
 
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {nutritionItems.map(([label, value, unit]) => (
-                  <div
-                    key={label}
-                    className="rounded-xl border border-white/70 bg-white/55 p-3"
-                  >
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      {label}
-                    </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  ["Calories", nutrition.calories, "kcal"],
+                  ["Added sugar", nutrition.added_sugar_g, "g"],
+                  ["Saturated fat", nutrition.saturated_fat_g, "g"],
+                  ["Sodium", nutrition.sodium_mg, "mg"],
+                ].map(([label, value, unit]) => (
+                  <div key={label} className="rounded-xl border border-white/80 bg-white/70 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
                     <p className="mt-2 text-xl font-semibold text-slate-900">
                       {value != null ? value : "—"}
-                      {value != null && (
-                        <span className="ml-1 text-xs font-medium text-slate-500">
-                          {unit}
-                        </span>
-                      )}
+                      {value != null && <span className="ml-1 text-xs font-medium text-slate-500">{unit}</span>}
                     </p>
                   </div>
                 ))}
               </div>
+
+              <details className="mt-4">
+                <summary className="cursor-pointer text-xs font-bold text-emerald-700">
+                  View full nutrition details
+                </summary>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {nutritionItems.map(([label, value, unit]) => (
+                    <div key={label} className="rounded-xl bg-white/65 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {value != null ? value : "—"}
+                        {value != null && <span className="ml-1 text-[10px] font-medium text-slate-500">{unit}</span>}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                {nutritionValidation.status && (
+                  <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                    {nutritionValidation.status === "verified" ? "Basic label consistency checks passed." : "Some values need verification against the package label."}
+                  </p>
+                )}
+              </details>
             </div>
 
+            {/* Simple verdict */}
+            <div className="rounded-2xl bg-slate-900 p-5 text-white">
+              <p className="text-[11px] font-bold uppercase tracking-[.14em] text-emerald-300">
+                Veronica's take
+              </p>
+              <p className="mt-3 text-base leading-7 text-slate-100">
+                {aiData.summary || "No summary was returned."}
+              </p>
+            </div>
+
+            {/* Personal warnings only when relevant */}
+            {(allergyWarnings.length > 0 || dietaryWarnings.length > 0) && (
+              <div className="rounded-2xl border border-amber-200/80 bg-amber-50/75 p-5">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">⚠</span>
+                  <h2 className="text-sm font-bold text-amber-900">Personal warnings</h2>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {allergyWarnings.map((item) => (
+                    <span key={item} className="rounded-full bg-rose-100 px-3 py-2 text-xs font-bold text-rose-800">
+                      Possible {item} match
+                    </span>
+                  ))}
+                  {dietaryWarnings.map((item) => (
+                    <span key={item} className="rounded-full bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Alternatives */}
             <div className="rounded-2xl bg-white/55 p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -401,9 +433,6 @@ export default function ProductSummary({
                   <h2 className="mt-1 text-xl font-semibold tracking-[-.03em] text-slate-900">
                     Better matches
                   </h2>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Comparable products with measurable nutrition differences. This is a comparison aid, not a medical recommendation.
-                  </p>
                 </div>
                 {alternativesLoading && (
                   <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
@@ -411,65 +440,37 @@ export default function ProductSummary({
                   </span>
                 )}
               </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Comparable products with measurable nutrition differences.
+              </p>
 
               {!alternativesLoading && alternatives.length > 0 && (
-                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {alternatives.map((item) => (
-                    <article
-                      key={item.barcode}
-                      className="overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-sm"
-                    >
-                      <div className="flex h-36 items-center justify-center bg-white/60 p-3">
+                    <article key={item.barcode} className="overflow-hidden rounded-2xl border border-white/80 bg-white/70">
+                      <div className="flex h-28 items-center justify-center bg-white/60 p-3">
                         {item.image ? (
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="h-full w-full object-contain"
-                            loading="lazy"
-                          />
+                          <img src={item.image} alt={item.name} className="h-full w-full object-contain" loading="lazy" />
                         ) : (
                           <span className="text-xs text-slate-400">No image</span>
                         )}
                       </div>
-                      <div className="p-4">
-                        <p className="text-sm font-bold leading-5 text-slate-900">
-                          {item.name}
-                        </p>
-                        {item.brand && (
-                          <p className="mt-1 text-xs text-slate-500">{item.brand}</p>
-                        )}
-
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                            Comparison score
-                          </span>
-                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                            {item.score}/100
-                          </span>
+                      <div className="p-3">
+                        <p className="text-sm font-bold leading-5 text-slate-900">{item.name}</p>
+                        {item.brand && <p className="mt-1 text-xs text-slate-500">{item.brand}</p>}
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Match</span>
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">{item.score}/100</span>
                         </div>
-
-                        {item.nutriscore && (
-                          <p className="mt-2 text-xs font-semibold text-slate-600">
-                            Nutri-Score: {String(item.nutriscore).toUpperCase()}
-                          </p>
-                        )}
-
                         {item.reasons?.length > 0 && (
-                          <div className="mt-3 space-y-2">
-                            {item.reasons.map((reason) => (
-                              <div
-                                key={reason.key}
-                                className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold leading-4 text-emerald-800"
-                              >
+                          <div className="mt-2 space-y-1.5">
+                            {item.reasons.slice(0, 2).map((reason) => (
+                              <div key={reason.key} className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-emerald-800">
                                 {reason.text}
                               </div>
                             ))}
                           </div>
                         )}
-
-                        <p className="mt-3 text-[10px] leading-4 text-slate-400">
-                          Nutrition values are from Open Food Facts and may be incomplete or user-contributed.
-                        </p>
                       </div>
                     </article>
                   ))}
@@ -477,164 +478,90 @@ export default function ProductSummary({
               )}
 
               {!alternativesLoading && alternatives.length === 0 && alternativesMessage && (
-                <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
-                  {alternativesMessage}
-                </p>
+                <p className="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">{alternativesMessage}</p>
               )}
             </div>
 
-
-            {(allergyWarnings.length > 0 || dietaryWarnings.length > 0) && (
-              <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-5">
-                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-amber-800">
-                  Personal warnings
-                </h2>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {allergyWarnings.map((item) => (
-                    <span key={item} className="rounded-full bg-rose-100 px-3 py-2 text-xs font-bold text-rose-800">
-                      ⚠ Possible {item} match
-                    </span>
-                  ))}
-                  {dietaryWarnings.map((item) => (
-                    <span key={item} className="rounded-full bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800">
-                      ⚠ {item}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-3 text-xs leading-5 text-amber-900/80">
-                  These are ingredient-text matches, not medical clearance or a guarantee that a product is safe for you.
+            {/* Only show concerns when there are actual flags */}
+            {aiData.harmful_ingredients?.length > 0 && (
+              <div className="rounded-2xl bg-rose-50/70 p-5">
+                <p className="text-[11px] font-bold uppercase tracking-[.14em] text-rose-700">
+                  Things to note
                 </p>
-              </div>
-            )}
-
-            <div className="rounded-2xl bg-white/45 p-5">
-              <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
-                Ingredients
-              </h2>
-              {visibleIngredients.length ? (
-                <ol className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {visibleIngredients.map((ingredient, index) => (
-                    <li
-                      key={`${ingredient}-${index}`}
-                      className="rounded-xl bg-white/60 px-4 py-3 text-sm leading-5 text-slate-700"
-                    >
-                      <span className="mr-2 font-semibold text-emerald-700">
-                        {index + 1}.
-                      </span>
-                      {ingredient}
-                    </li>
-                  ))}
-                </ol>
-              ) : majorIngredients.length ? (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {majorIngredients.map((item, index) => (
-                    <div
-                      key={`${item.name}-${index}`}
-                      className="rounded-xl bg-white/60 px-4 py-3 text-sm text-slate-700"
-                    >
-                      <strong className="text-slate-900">{item.name}</strong>
-                      {item.percentage != null && (
-                        <span className="ml-2 text-slate-500">
-                          {item.percentage}%
-                        </span>
-                      )}
-                      {item.amount_g_per_serving != null && (
-                        <span className="ml-2 text-slate-500">
-                          {item.amount_g_per_serving} g/serving
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-slate-500">
-                  No readable ingredient list was detected in this image. Try a clearer close-up of the ingredients panel.
-                </p>
-              )}
-            </div>
-
-            {majorIngredients.length > 0 && (
-              <div className="rounded-2xl bg-emerald-50/55 p-5">
-                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-emerald-700">
-                  Major ingredients
-                </h2>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {majorIngredients.map((item, index) => (
-                    <span
-                      key={`${item.name}-major-${index}`}
-                      className="rounded-full bg-white/75 px-3 py-2 text-sm text-slate-700"
-                    >
-                      {item.name}
-                      {item.percentage != null ? ` · ${item.percentage}%` : ""}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {ingredientExplanations.length > 0 && (
-              <div className="rounded-2xl bg-amber-50/55 p-5">
-                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-amber-800">
-                  Ingredient deep dive
-                </h2>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {ingredientExplanations.map((item, index) => (
-                    <div key={item.name + index} className="rounded-xl bg-white/70 p-4">
-                      <p className="font-bold text-slate-900">{item.name}</p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-amber-700">{item.purpose}</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">{item.explanation}</p>
+                <div className="mt-3 space-y-2">
+                  {aiData.harmful_ingredients.slice(0, 3).map((item, index) => (
+                    <div key={index} className="rounded-xl bg-white/65 p-3">
+                      <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">{item.impact}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="rounded-2xl bg-rose-50/55 p-5">
-              <h2 className="text-sm font-bold uppercase tracking-[.13em] text-rose-700">
-                Ingredients to note
-              </h2>
+            {/* Everything else is available, but no longer dominates the page */}
+            <details className="rounded-2xl bg-white/45 p-5">
+              <summary className="cursor-pointer text-sm font-bold uppercase tracking-[.13em] text-slate-600">
+                Ingredients & detailed analysis
+              </summary>
 
-              {aiData.harmful_ingredients?.length ? (
-                <ul className="mt-3 space-y-3">
-                  {aiData.harmful_ingredients.map((item, index) => (
-                    <li
-                      key={index}
-                      className="border-l-2 border-rose-400 pl-4 text-sm leading-6 text-slate-700"
-                    >
-                      <strong className="font-semibold text-slate-900">
-                        {item.name}
-                      </strong>
-                      <br />
-                      {item.impact}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 text-sm text-slate-500">
-                  No specific ingredient concern was flagged from the visible label.
-                </p>
-              )}
-            </div>
+              <div className="mt-5 space-y-5">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Ingredients</h3>
+                  {visibleIngredients.length ? (
+                    <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {visibleIngredients.map((ingredient, index) => (
+                        <li key={`${ingredient}-${index}`} className="rounded-xl bg-white/60 px-3 py-2 text-xs leading-5 text-slate-700">
+                          <span className="mr-2 font-semibold text-emerald-700">{index + 1}.</span>
+                          {ingredient}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">No readable ingredient list was detected.</p>
+                  )}
+                </div>
 
-            <div className="rounded-2xl bg-white/45 p-5">
-              <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
-                Summary
-              </h2>
-              <p className="mt-3 leading-7 text-slate-700">
-                {aiData.summary || "No summary was returned."}
-              </p>
-            </div>
+                {majorIngredients.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Major ingredients</h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {majorIngredients.map((item, index) => (
+                        <span key={`${item.name}-major-${index}`} className="rounded-full bg-white/75 px-3 py-2 text-xs text-slate-700">
+                          {item.name}{item.percentage != null ? ` · ${item.percentage}%` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {aiData.user_specific_summary?.trim() && (
-              <div className="rounded-2xl bg-violet-50/55 p-5">
-                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-violet-700">
-                  For your profile
-                </h2>
-                <p className="mt-3 leading-7 text-slate-700">
-                  {aiData.user_specific_summary}
-                </p>
+                {ingredientExplanations.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Ingredient explanations</h3>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {ingredientExplanations.map((item, index) => (
+                        <div key={item.name + index} className="rounded-xl bg-white/70 p-4">
+                          <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">{item.purpose}</p>
+                          <p className="mt-2 text-xs leading-5 text-slate-700">{item.explanation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {aiData.user_specific_summary?.trim() && (
+                  <div className="rounded-xl bg-violet-50/70 p-4">
+                    <h3 className="text-sm font-bold text-violet-800">For your profile</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{aiData.user_specific_summary}</p>
+                  </div>
+                )}
               </div>
-            )}
+            </details>
+
+            <p className="px-1 text-[10px] leading-4 text-slate-400">
+              Veronica provides general food-label information, not medical advice. Nutrition data may be incomplete or incorrectly read from the package.
+            </p>
           </div>
 
           {error && (
