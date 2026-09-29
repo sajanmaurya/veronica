@@ -243,6 +243,19 @@ const foodAnalysisSchema = {
     },
     summary: { type: "string" },
     user_specific_summary: { type: "string" },
+    ingredient_explanations: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: { type: "string" },
+          purpose: { type: "string" },
+          explanation: { type: "string" },
+        },
+        required: ["name", "purpose", "explanation"],
+      },
+    },
   },
   required: [
     "product_name",
@@ -253,6 +266,7 @@ const foodAnalysisSchema = {
     "harmful_ingredients",
     "summary",
     "user_specific_summary",
+    "ingredient_explanations",
   ],
 };
 
@@ -380,12 +394,15 @@ Tasks:
 - occasional consumption
 - rare consumption
 
-8. If the user has relevant diseases or allergies, provide a personalized summary.
+8. If the user has relevant diseases, allergies, or dietary preferences, provide a personalized summary.
+
+9. For "ingredient_explanations", explain only notable additives, preservatives, sweeteners, colors, emulsifiers, flavor enhancers, or other ingredients actually visible in the ingredient list. Keep each explanation short. Return an empty array when none are notable.
 
 User profile:
 ${JSON.stringify({
   diseases: profile?.diseases || null,
   allergies: profile?.allergies || null,
+  dietaryPreferences: profile?.dietaryPreferences || null,
 })}
 
 IMPORTANT DATA RULES:
