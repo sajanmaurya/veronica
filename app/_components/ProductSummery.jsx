@@ -96,6 +96,59 @@ export default function ProductSummary({
   const { user } = useUser();
   const { profile } = useUserProfile();
   const [error, setError] = useState(null);
+  const [alternatives, setAlternatives] = useState([]);
+  const [alternativesLoading, setAlternativesLoading] = useState(false);
+  const [alternativesMessage, setAlternativesMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAlternatives() {
+      if (!aiData) return;
+
+      setAlternatives([]);
+      setAlternativesMessage("");
+      setAlternativesLoading(true);
+
+      try {
+        const response = await fetch("/api/alternatives", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product: aiData,
+            profile: {
+              allergies: profile?.allergies || "",
+              dietaryPreferences: profile?.dietaryPreferences || "",
+            },
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Could not find alternatives.");
+        }
+
+        if (!cancelled) {
+          setAlternatives(result.data?.alternatives || []);
+          setAlternativesMessage(result.data?.message || "");
+        }
+      } catch (alternativeError) {
+        console.error("Could not load healthy alternatives:", alternativeError);
+        if (!cancelled) {
+          setAlternativesMessage("Alternatives are unavailable right now.");
+        }
+      } finally {
+        if (!cancelled) setAlternativesLoading(false);
+      }
+    }
+
+    loadAlternatives();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [aiData, profile?.allergies, profile?.dietaryPreferences]);
 
   useEffect(() => {
     let cancelled = false;
@@ -442,6 +495,97 @@ export default function ProductSummary({
                 </div>
               </div>
             )}
+
+            <div className="rounded-2xl bg-white/55 p-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[.14em] text-emerald-700">
+                    Veronica suggestions
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-[-.03em] text-slate-900">
+                    Better matches
+                  </h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Comparable products with measurable nutrition differences. This is a comparison aid, not a medical recommendation.
+                  </p>
+                </div>
+                {alternativesLoading && (
+                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
+                    Finding matches…
+                  </span>
+                )}
+              </div>
+
+              {!alternativesLoading && alternatives.length > 0 && (
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  {alternatives.map((item) => (
+                    <article
+                      key={item.barcode}
+                      className="overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-sm"
+                    >
+                      <div className="flex h-36 items-center justify-center bg-white/60 p-3">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-full w-full object-contain"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="text-xs text-slate-400">No image</span>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <p className="text-sm font-bold leading-5 text-slate-900">
+                          {item.name}
+                        </p>
+                        {item.brand && (
+                          <p className="mt-1 text-xs text-slate-500">{item.brand}</p>
+                        )}
+
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Comparison score
+                          </span>
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                            {item.score}/100
+                          </span>
+                        </div>
+
+                        {item.nutriscore && (
+                          <p className="mt-2 text-xs font-semibold text-slate-600">
+                            Nutri-Score: {String(item.nutriscore).toUpperCase()}
+                          </p>
+                        )}
+
+                        {item.reasons?.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            {item.reasons.map((reason) => (
+                              <div
+                                key={reason.key}
+                                className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold leading-4 text-emerald-800"
+                              >
+                                {reason.text}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <p className="mt-3 text-[10px] leading-4 text-slate-400">
+                          Nutrition values are from Open Food Facts and may be incomplete or user-contributed.
+                        </p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {!alternativesLoading && alternatives.length === 0 && alternativesMessage && (
+                <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
+                  {alternativesMessage}
+                </p>
+              )}
+            </div>
 
             <div className="rounded-2xl bg-rose-50/55 p-5">
               <h2 className="text-sm font-bold uppercase tracking-[.13em] text-rose-700">

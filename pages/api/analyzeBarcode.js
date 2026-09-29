@@ -161,6 +161,7 @@ ${JSON.stringify({
       success: true,
       data: {
         ...data,
+        product_category: product.categories || product.pnns_groups_2 || product.pnns_groups_1 || "Unknown",
         ingredients,
         nutriscore_grade: product.nutriscore_grade || null,
         nutriscore_score:

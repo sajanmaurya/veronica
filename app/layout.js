@@ -22,27 +22,38 @@ export const metadata = {
   title: "Veronica",
   description: "AI-powered food safety and health analysis",
   manifest: "/manifest.webmanifest",
+};
+
+export const viewport = {
   themeColor: "#0b5f4a",
 };
 
 export default function RootLayout({ children }) {
-  return (
-    <ClerkProvider>
-      <UserProfileProvider>
-        <html lang="en">
-          <body
-            className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
-          >
-            <Header />
-            <ServiceWorkerRegistration />
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-            <div className="app-content">
-              <ToastContainer />
-              {children}
-            </div>
-          </body>
-        </html>
-      </UserProfileProvider>
-    </ClerkProvider>
+  const content = (
+    <UserProfileProvider>
+      <html lang="en">
+        <body
+          className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
+        >
+          <Header clerkEnabled={Boolean(publishableKey)} />
+          <ServiceWorkerRegistration />
+
+          <div className="app-content">
+            <ToastContainer />
+            {children}
+          </div>
+        </body>
+      </html>
+    </UserProfileProvider>
+  );
+
+  // Allow Vercel preview builds without Clerk's public key to prerender
+  // public/error pages. Production auth remains enabled whenever the key exists.
+  return publishableKey ? (
+    <ClerkProvider publishableKey={publishableKey}>{content}</ClerkProvider>
+  ) : (
+    content
   );
 }

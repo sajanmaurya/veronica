@@ -14,7 +14,7 @@ const links = [
   ["/UserProfile", "Profile"],
 ];
 
-export default function Header() {
+export default function Header({ clerkEnabled = true }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -57,19 +57,22 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="hidden glass-button-primary px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] sm:inline-flex">
-                  Log in
-                </button>
-              </SignInButton>
-            </SignedOut>
-
-            <SignedIn>
-              <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 sm:block">
-                <UserButton afterSignOutUrl="/" />
-              </div>
-            </SignedIn>
+            {clerkEnabled ? (
+              <>
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button className="hidden glass-button-primary px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] sm:inline-flex">
+                      Log in
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+                <SignedIn>
+                  <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 sm:block">
+                    <UserButton afterSignOutUrl="/" />
+                  </div>
+                </SignedIn>
+              </>
+            ) : null}
 
             <button
               type="button"
@@ -111,25 +114,28 @@ export default function Header() {
               ))}
             </div>
 
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="glass-button-primary mb-1 mt-1 w-full py-2.5 font-mono text-xs font-bold uppercase tracking-[.08em]"
-                >
-                  Log in
-                </button>
-              </SignInButton>
-            </SignedOut>
-
-            <SignedIn>
-              <div className="mt-1 flex items-center justify-between rounded-xl border border-white/70 bg-white/45 px-4 py-2.5">
-                <span className="text-xs font-semibold text-slate-600">
-                  Account
-                </span>
-                <UserButton afterSignOutUrl="/" />
-              </div>
-            </SignedIn>
+            {clerkEnabled ? (
+              <>
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button
+                      onClick={() => setMenuOpen(false)}
+                      className="glass-button-primary mb-1 mt-1 w-full py-2.5 font-mono text-xs font-bold uppercase tracking-[.08em]"
+                    >
+                      Log in
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+                <SignedIn>
+                  <div className="mt-1 flex items-center justify-between rounded-xl border border-white/70 bg-white/45 px-4 py-2.5">
+                    <span className="text-xs font-semibold text-slate-600">
+                      Account
+                    </span>
+                    <UserButton afterSignOutUrl="/" />
+                  </div>
+                </SignedIn>
+              </>
+            ) : null}
           </nav>
         )}
       </div>

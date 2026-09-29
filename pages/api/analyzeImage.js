@@ -170,6 +170,7 @@ const foodAnalysisSchema = {
   additionalProperties: false,
   properties: {
     product_name: { type: "string" },
+    product_category: { type: "string" },
     rating: { type: "number" },
     nutrition: {
       type: "object",
@@ -259,6 +260,7 @@ const foodAnalysisSchema = {
   },
   required: [
     "product_name",
+    "product_category",
     "rating",
     "nutrition",
     "ingredients",
@@ -371,9 +373,11 @@ Tasks:
 
 1. Give a health rating from 1 to 10 based on the visible nutrition and ingredient information.
 
-2. Identify concerning or potentially harmful ingredients. Do not call an ingredient harmful merely because it is unfamiliar. Explain the relevant concern.
+2. Classify the product into a concise broad food category such as chips, biscuits, cereals, yogurt, dairy, beverages, sauces, frozen foods, snacks, or another specific category supported by the package. Do not invent a category.
 
-3. Consider:
+3. Identify concerning or potentially harmful ingredients. Do not call an ingredient harmful merely because it is unfamiliar. Explain the relevant concern.
+
+4. Consider:
 - Added sugar
 - Saturated fat
 - Trans fat
@@ -383,20 +387,20 @@ Tasks:
 - Allergens
 - Highly processed ingredients
 
-4. Give a concise overall health summary in 2-3 sentences. Do not write a long paragraph.
+5. Give a concise overall health summary in 2-3 sentences. Do not write a long paragraph.
 
-5. Extract the visible ingredient list into "ingredients". Preserve the ingredient names as written, in order. Do not invent ingredients.
+6. Extract the visible ingredient list into "ingredients". Preserve the ingredient names as written, in order. Do not invent ingredients.
 
-6. Select the most important ingredients to highlight in "major_ingredients". Use the visible ingredient list as the source.
+7. Select the most important ingredients to highlight in "major_ingredients". Use the visible ingredient list as the source.
 
-7. State whether the product is more suitable for:
+8. State whether the product is more suitable for:
 - frequent consumption
 - occasional consumption
 - rare consumption
 
-8. If the user has relevant diseases, allergies, or dietary preferences, provide a personalized summary.
+9. If the user has relevant diseases, allergies, or dietary preferences, provide a personalized summary.
 
-9. For "ingredient_explanations", explain only notable additives, preservatives, sweeteners, colors, emulsifiers, flavor enhancers, or other ingredients actually visible in the ingredient list. Keep each explanation short. Return an empty array when none are notable.
+10. For "ingredient_explanations", explain only notable additives, preservatives, sweeteners, colors, emulsifiers, flavor enhancers, or other ingredients actually visible in the ingredient list. Keep each explanation short. Return an empty array when none are notable.
 
 User profile:
 ${JSON.stringify({
@@ -419,6 +423,7 @@ IMPORTANT DATA RULES:
 - Only provide amount_g_per_serving when it is explicitly stated or can be directly calculated from a visible percentage and serving size.
 - Never invent ingredient quantities.
 - Product name must be "Unknown product" when it cannot be read with confidence.
+- Product category must be a concise broad category supported by the visible package; use "Unknown" when it cannot be determined.
 - Keep user_specific_summary as an empty string when the profile does not contain relevant information.
 
 Return data matching the supplied JSON schema.
