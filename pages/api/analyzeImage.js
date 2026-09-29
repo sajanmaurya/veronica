@@ -169,6 +169,7 @@ const foodAnalysisSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
+    is_food_product: { type: "boolean" },
     product_name: { type: "string" },
     product_category: { type: "string" },
     rating: { type: "number" },
@@ -259,6 +260,7 @@ const foodAnalysisSchema = {
     },
   },
   required: [
+    "is_food_product",
     "product_name",
     "product_category",
     "rating",
@@ -345,6 +347,22 @@ export default async function handler(req, res) {
     const prompt = `
 You are Veronica, a careful food-package analysis assistant.
 
+First determine whether the uploaded image actually shows a food or beverage product/package or a readable food label.
+
+A valid image must contain a food/beverage product or its packaging/label. Examples include a packaged snack, biscuit packet, cereal box, beverage bottle, yogurt/dairy package, sauce, frozen food, or a clear ingredients/nutrition label.
+
+If the image is unrelated to food (for example a laptop, phone, person, room, animal, vehicle, scenery, document unrelated to food, or any other non-food object), set "is_food_product" to false. In that case:
+- Do not assign a health rating.
+- Set "rating" to 0.
+- Set "product_name" to "Unknown product".
+- Set "product_category" to "Unknown".
+- Return empty arrays for ingredients, major_ingredients, harmful_ingredients, and ingredient_explanations.
+- Set nutrition fields to null where applicable.
+- Set summary to a short message explaining that Veronica needs a food/beverage product or food label.
+- Set user_specific_summary to an empty string.
+
+Only if the image is actually a food/beverage product or food label should you perform the full analysis below.
+
 Analyze the food product shown in the uploaded image.
 
 Read only information that is actually visible in the image. Carefully inspect:
@@ -371,13 +389,15 @@ Read only information that is actually visible in the image. Carefully inspect:
 
 Tasks:
 
-1. Give a health rating from 1 to 10 based on the visible nutrition and ingredient information.
+1. Decide whether this is a food/beverage product or food label and set "is_food_product" accordingly. Never treat an unrelated object as a food product.
 
-2. Classify the product into a concise broad food category such as chips, biscuits, cereals, yogurt, dairy, beverages, sauces, frozen foods, snacks, or another specific category supported by the package. Do not invent a category.
+2. Give a health rating from 1 to 10 based on the visible nutrition and ingredient information. Only provide a non-zero rating when "is_food_product" is true.
 
-3. Identify concerning or potentially harmful ingredients. Do not call an ingredient harmful merely because it is unfamiliar. Explain the relevant concern.
+3. Classify the product into a concise broad food category such as chips, biscuits, cereals, yogurt, dairy, beverages, sauces, frozen foods, snacks, or another specific category supported by the package. Do not invent a category.
 
-4. Consider:
+4. Identify concerning or potentially harmful ingredients. Do not call an ingredient harmful merely because it is unfamiliar. Explain the relevant concern.
+
+5. Consider:
 - Added sugar
 - Saturated fat
 - Trans fat
@@ -387,20 +407,20 @@ Tasks:
 - Allergens
 - Highly processed ingredients
 
-5. Give a concise overall health summary in 2-3 sentences. Do not write a long paragraph.
+6. Give a concise overall health summary in 2-3 sentences. Do not write a long paragraph.
 
-6. Extract the visible ingredient list into "ingredients". Preserve the ingredient names as written, in order. Do not invent ingredients.
+7. Extract the visible ingredient list into "ingredients". Preserve the ingredient names as written, in order. Do not invent ingredients.
 
-7. Select the most important ingredients to highlight in "major_ingredients". Use the visible ingredient list as the source.
+8. Select the most important ingredients to highlight in "major_ingredients". Use the visible ingredient list as the source.
 
-8. State whether the product is more suitable for:
+9. State whether the product is more suitable for:
 - frequent consumption
 - occasional consumption
 - rare consumption
 
-9. If the user has relevant diseases, allergies, or dietary preferences, provide a personalized summary.
+10. If the user has relevant diseases, allergies, or dietary preferences, provide a personalized summary.
 
-10. For "ingredient_explanations", explain only notable additives, preservatives, sweeteners, colors, emulsifiers, flavor enhancers, or other ingredients actually visible in the ingredient list. Keep each explanation short. Return an empty array when none are notable.
+11. For "ingredient_explanations", explain only notable additives, preservatives, sweeteners, colors, emulsifiers, flavor enhancers, or other ingredients actually visible in the ingredient list. Keep each explanation short. Return an empty array when none are notable.
 
 User profile:
 ${JSON.stringify({
@@ -411,6 +431,8 @@ ${JSON.stringify({
 
 IMPORTANT DATA RULES:
 
+- "is_food_product" must be false for unrelated images such as laptops, phones, people, rooms, vehicles, scenery, animals, or non-food documents.
+- Never assign a health rating to a non-food image.
 - Report the nutrition-panel basis in "label_basis" exactly from the visible label.
 - If the panel is per 100 g or per 100 ml, do NOT pretend those numbers are per serving.
 - Nutrition values should be transcribed from the visible panel; the server will handle a safe per-100 g to serving conversion when the serving size is clearly available.
@@ -509,6 +531,15 @@ Return data matching the supplied JSON schema.
         success: false,
         error:
           "Qwen returned an invalid response. Please try again.",
+      });
+    }
+
+    if (data.is_food_product === false) {
+      return res.status(422).json({
+        success: false,
+        error:
+          "This does not appear to be a food or beverage product. Please upload a clear photo of the food package, ingredients list, or Nutrition Facts label.",
+        code: "NOT_A_FOOD_PRODUCT",
       });
     }
 
