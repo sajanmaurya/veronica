@@ -10,6 +10,7 @@ const UserProfile = () => {
   const [email, setEmail] = useState("");
   const [diseases, setDiseases] = useState("");
   const [allergies, setAllergies] = useState("");
+  const [dietaryPreferences, setDietaryPreferences] = useState("");
 
   useEffect(() => {
     if (profile) {
@@ -17,6 +18,7 @@ const UserProfile = () => {
       setEmail(profile.email || "");
       setDiseases(profile.diseases || "");
       setAllergies(profile.allergies || "");
+      setDietaryPreferences(profile.dietaryPreferences || "");
     }
   }, [profile]);
 
@@ -28,6 +30,7 @@ const UserProfile = () => {
         email: email.trim() || "guest@example.com",
         diseases,
         allergies,
+        dietaryPreferences,
       };
 
       localStorage.setItem("veronica-profile", JSON.stringify(updatedProfile));
@@ -79,6 +82,17 @@ const UserProfile = () => {
               onChange={(e) => setDiseases(e.target.value)}
               className="glass-input mt-1 block"
               placeholder="e.g. Diabetes, Hypertension"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Dietary preferences</label>
+            <input
+              type="text"
+              value={dietaryPreferences}
+              onChange={(e) => setDietaryPreferences(e.target.value)}
+              className="glass-input mt-1 block"
+              placeholder="e.g. Vegetarian, Vegan, Gluten-free"
             />
           </div>
 
