@@ -7,6 +7,59 @@ import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
 
+const BARCODE_CACHE_DB = "veronica-barcode-cache";
+const BARCODE_CACHE_STORE = "products";
+const BARCODE_CACHE_TTL = 1000 * 60 * 60 * 24 * 30;
+
+function openBarcodeCache() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.indexedDB) {
+      resolve(null);
+      return;
+    }
+    const request = window.indexedDB.open(BARCODE_CACHE_DB, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(BARCODE_CACHE_STORE, { keyPath: "barcode" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getCachedBarcode(barcode) {
+  try {
+    const db = await openBarcodeCache();
+    if (!db) return null;
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(BARCODE_CACHE_STORE, "readonly");
+      const request = tx.objectStore(BARCODE_CACHE_STORE).get(barcode);
+      request.onsuccess = () => {
+        const item = request.result;
+        resolve(item && Date.now() - item.cachedAt < BARCODE_CACHE_TTL ? item.data : null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.warn("Barcode cache read failed:", error);
+    return null;
+  }
+}
+
+async function cacheBarcode(barcode, data) {
+  try {
+    const db = await openBarcodeCache();
+    if (!db) return;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(BARCODE_CACHE_STORE, "readwrite");
+      tx.objectStore(BARCODE_CACHE_STORE).put({ barcode, data, cachedAt: Date.now() });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.warn("Barcode cache write failed:", error);
+  }
+}
+
 const BarcodeScanning = () => {
   const [scanning, setScanning] = useState(false);
   const [data, setData] = useState("");
@@ -227,6 +280,8 @@ const BarcodeScanning = () => {
   const [imageFrontUrl, setImageFrontUrl] = useState("");
   const [imageNutritionImage, setImageNutritionImage] = useState("");
   const [productName, setProductName] = useState("");
+  const [barcodeNotFound, setBarcodeNotFound] = useState(false);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
 
   // =====================================================
   // BARCODE SCANNER
@@ -259,18 +314,30 @@ const BarcodeScanning = () => {
 
       const cleanBarcode = String(barcode).trim();
 
-      const result = await fetch(
-        `/api/scanBarcode/${encodeURIComponent(cleanBarcode)}`
-      );
+      setBarcodeNotFound(false);
 
-      const response = await result.json();
+      const cachedProduct = await getCachedBarcode(cleanBarcode);
+      let response;
+
+      if (cachedProduct) {
+        response = { success: true, data: cachedProduct, cached: true };
+        toast.success("Product found in offline cache");
+      } else {
+        const result = await fetch(
+          `/api/scanBarcode/${encodeURIComponent(cleanBarcode)}`
+        );
+        response = await result.json();
+      }
 
       console.log("Barcode API Response:", response);
 
       if (!response.success || !response.data) {
-        toast.error(response.message || "Product not found");
+        setBarcodeNotFound(true);
+        toast.info("Product not in the barcode database. You can scan its label instead.");
         return;
       }
+
+      await cacheBarcode(cleanBarcode, response.data);
 
       toast.success("Product Found");
 
@@ -330,6 +397,7 @@ const BarcodeScanning = () => {
           profile: {
             diseases: profile?.diseases || "",
             allergies: profile?.allergies || "",
+            dietaryPreferences: profile?.dietaryPreferences || "",
           },
         }),
       });
@@ -373,6 +441,46 @@ const BarcodeScanning = () => {
   // =====================================================
   // RESET
   // =====================================================
+
+  const handleVisionFallback = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setFallbackLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append(
+        "profile",
+        JSON.stringify({
+          diseases: profile?.diseases || "",
+          allergies: profile?.allergies || "",
+          dietaryPreferences: profile?.dietaryPreferences || "",
+        })
+      );
+
+      const response = await fetch("/api/analyzeImage", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.error || "Vision analysis failed.");
+      }
+
+      setAiData(result.data);
+      setProductName(result.data.product_name || "Unknown product");
+      setImageFrontUrl(URL.createObjectURL(file));
+      setBarcodeNotFound(false);
+      toast.success("Label analyzed with Vision AI");
+    } catch (error) {
+      console.error("Vision fallback failed:", error);
+      toast.error(error?.message || "Could not analyze the label.");
+    } finally {
+      setFallbackLoading(false);
+    }
+  };
 
   const resetScan = () => {
     scanLocked.current = false;
@@ -463,6 +571,33 @@ const BarcodeScanning = () => {
             >
               Scan with camera
             </button>
+          )}
+
+          {barcodeNotFound && !aiData && (
+            <div className="w-full rounded-3xl border border-emerald-200/70 bg-emerald-50/70 p-5 text-center shadow-sm">
+              <p className="text-base font-bold text-slate-900">Barcode not found</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                No product record was returned. Photograph the ingredients or nutrition label and Veronica will analyze it with Vision AI.
+              </p>
+              <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-emerald-800">
+                {fallbackLoading ? "Analyzing label..." : "Analyze the product label"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleVisionFallback}
+                  disabled={fallbackLoading}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={resetScan}
+                className="ml-2 mt-3 rounded-2xl border border-emerald-900/10 bg-white/70 px-5 py-3 text-sm font-semibold text-emerald-800"
+              >
+                Scan another barcode
+              </button>
+            </div>
           )}
 
           {/* MANUAL BARCODE INPUT */}

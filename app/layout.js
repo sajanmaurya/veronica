@@ -5,6 +5,7 @@ import Header from "./_components/Header";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserProfileProvider } from "@/context/UserProfileContext";
+import ServiceWorkerRegistration from "./ServiceWorkerRegistration";
 
 const spaceMono = Space_Mono({
   variable: "--font-space-mono",
@@ -20,6 +21,8 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Veronica",
   description: "AI-powered food safety and health analysis",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0b5f4a",
 };
 
 export default function RootLayout({ children }) {
@@ -31,6 +34,7 @@ export default function RootLayout({ children }) {
             className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
           >
             <Header />
+            <ServiceWorkerRegistration />
 
             <div className="app-content">
               <ToastContainer />
