@@ -67,7 +67,14 @@ export default function Header() {
 
             <SignedIn>
               <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 sm:block">
-                <UserButton afterSignOutUrl="/" />
+                <UserButton
+                  afterSignOutUrl="/"
+                  userProfileProps={{
+                    additionalOAuthScopes: {
+                      google: ["https://www.googleapis.com/auth/drive.appdata"],
+                    },
+                  }}
+                />
               </div>
             </SignedIn>
 
