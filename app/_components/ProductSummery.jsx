@@ -240,17 +240,17 @@ export default function ProductSummary({
     ? aiData.major_ingredients.filter((item) => item?.name)
     : [];
 
-  const rawScore = Math.round(Math.min(100, Math.max(0, rating * 10)));
+  const healthRating = Math.round(Math.min(10, Math.max(0, rating)) * 10) / 10;
   const scoreGrade =
-    rawScore >= 80 ? "A" :
-    rawScore >= 65 ? "B" :
-    rawScore >= 50 ? "C" :
-    rawScore >= 35 ? "D" : "E";
+    healthRating >= 8 ? "A" :
+    healthRating >= 6.5 ? "B" :
+    healthRating >= 5 ? "C" :
+    healthRating >= 3.5 ? "D" : "E";
   const scoreLabel =
-    rawScore >= 80 ? "Strong profile" :
-    rawScore >= 65 ? "Generally good" :
-    rawScore >= 50 ? "Mixed profile" :
-    rawScore >= 35 ? "Needs attention" : "Occasional choice";
+    healthRating >= 8 ? "Strong profile" :
+    healthRating >= 6.5 ? "Generally good" :
+    healthRating >= 5 ? "Mixed profile" :
+    healthRating >= 3.5 ? "Needs attention" : "Occasional choice";
 
   const nutriScoreGrade = String(aiData.nutriscore_grade || "").toUpperCase();
   const allergies = String(profile?.allergies || "")
@@ -298,9 +298,9 @@ export default function ProductSummary({
 
             <div className="flex items-center gap-3">
               <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20">
-                <span className="text-3xl font-semibold">{rawScore}</span>
+                <span className="text-3xl font-semibold">{healthRating}</span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">
-                  Veronica / 100
+                  Health rating / 10
                 </span>
               </div>
               <div className="text-left">
