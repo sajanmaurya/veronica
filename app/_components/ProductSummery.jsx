@@ -111,6 +111,37 @@ export default function ProductSummary({
 
         if (cancelled) return;
 
+        // Drive is the primary history store. This keeps new analysis records
+        // and their images out of the database for users who have connected
+        // Google Drive through Clerk.
+        const driveResponse = await fetch("/api/drive/save-analysis", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productName:
+              productName ||
+              aiData.product_name ||
+              "Unknown product",
+            aiData,
+            imageFrontData: frontImageData,
+            imageNutritionData: nutritionImageData,
+          }),
+        });
+
+        if (driveResponse.ok) {
+          if (!cancelled) setError(null);
+          return;
+        }
+
+        const driveData = await driveResponse.json().catch(() => ({}));
+
+        // Existing Neon/Object Storage remains a safe fallback when the user
+        // has not yet connected/re-authorized Google Drive.
+        console.warn(
+          "Google Drive save unavailable; using existing history storage:",
+          driveData
+        );
+
         const [permanentFrontUrl, permanentNutritionUrl] = await Promise.all([
           uploadHistoryImage(frontImageData, "history-front"),
           uploadHistoryImage(nutritionImageData, "history-label"),
@@ -145,7 +176,11 @@ export default function ProductSummary({
           throw new Error(message);
         }
 
-        if (!cancelled) setError(null);
+        if (!cancelled) {
+          setError(
+            "Google Drive is not connected yet, so this result was saved using Veronica's existing storage."
+          );
+        }
       } catch (err) {
         console.error("Could not save analysis history:", err);
         if (!cancelled) {
