@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useUserProfile } from "@/context/UserProfileContext";
 
 async function makePermanentImageData(sourceUrl) {
   if (!sourceUrl) return null;
@@ -93,6 +94,7 @@ export default function ProductSummary({
   imageNutritionImage,
 }) {
   const { user } = useUser();
+  const { profile } = useUserProfile();
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -164,7 +166,6 @@ export default function ProductSummary({
   const rating = Number(aiData.rating) || 0;
   const nutrition = aiData.nutrition || {};
   const nutritionValidation = aiData.nutrition_validation || {};
-
   const nutritionItems = [
     ["Calories", nutrition.calories, "kcal"],
     ["Added sugar", nutrition.added_sugar_g, "g"],
@@ -186,6 +187,47 @@ export default function ProductSummary({
     ? aiData.major_ingredients.filter((item) => item?.name)
     : [];
 
+  const rawScore = Math.round(Math.min(100, Math.max(0, rating * 10)));
+  const scoreGrade =
+    rawScore >= 80 ? "A" :
+    rawScore >= 65 ? "B" :
+    rawScore >= 50 ? "C" :
+    rawScore >= 35 ? "D" : "E";
+  const scoreLabel =
+    rawScore >= 80 ? "Strong profile" :
+    rawScore >= 65 ? "Generally good" :
+    rawScore >= 50 ? "Mixed profile" :
+    rawScore >= 35 ? "Needs attention" : "Occasional choice";
+
+  const nutriScoreGrade = String(aiData.nutriscore_grade || "").toUpperCase();
+  const allergies = String(profile?.allergies || "")
+    .split(/[,;]+/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  const ingredientText = [
+    ...(Array.isArray(visibleIngredients) ? visibleIngredients : []),
+    ...(Array.isArray(majorIngredients) ? majorIngredients.map((item) => item.name) : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  const allergyWarnings = allergies.filter((allergen) =>
+    allergen && ingredientText.includes(allergen)
+  );
+  const dietaryPreferences = String(profile?.dietaryPreferences || "").toLowerCase();
+  const dietaryWarnings = [];
+  if (dietaryPreferences.includes("vegan") && /(milk|whey|casein|gelatin|egg|honey|meat|chicken|fish)/i.test(ingredientText)) {
+    dietaryWarnings.push("Possible non-vegan ingredient detected");
+  }
+  if (dietaryPreferences.includes("vegetarian") && /(gelatin|meat|chicken|beef|pork|fish|anchovy)/i.test(ingredientText)) {
+    dietaryWarnings.push("Possible non-vegetarian ingredient detected");
+  }
+  if (dietaryPreferences.includes("gluten") && /(wheat|barley|rye|malt)/i.test(ingredientText)) {
+    dietaryWarnings.push("Possible gluten-containing ingredient detected");
+  }
+  const ingredientExplanations = Array.isArray(aiData.ingredient_explanations)
+    ? aiData.ingredient_explanations.filter((item) => item?.name)
+    : [];
+
   return (
     <section className="app-canvas pt-6">
       <div className="mx-auto max-w-4xl">
@@ -201,11 +243,22 @@ export default function ProductSummary({
               </p>
             </div>
 
-            <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20">
-              <span className="text-3xl font-semibold">{rating}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">
-                out of 10
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20">
+                <span className="text-3xl font-semibold">{rawScore}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">
+                  Veronica / 100
+                </span>
+              </div>
+              <div className="text-left">
+                <p className="text-3xl font-bold text-slate-900">{scoreGrade}</p>
+                <p className="text-xs font-semibold text-slate-500">{scoreLabel}</p>
+                {nutriScoreGrade && nutriScoreGrade !== "UNKNOWN" && (
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Nutri-Score {nutriScoreGrade}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -285,6 +338,29 @@ export default function ProductSummary({
               </div>
             </div>
 
+            {(allergyWarnings.length > 0 || dietaryWarnings.length > 0) && (
+              <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-5">
+                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-amber-800">
+                  Personal warnings
+                </h2>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {allergyWarnings.map((item) => (
+                    <span key={item} className="rounded-full bg-rose-100 px-3 py-2 text-xs font-bold text-rose-800">
+                      ⚠ Possible {item} match
+                    </span>
+                  ))}
+                  {dietaryWarnings.map((item) => (
+                    <span key={item} className="rounded-full bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800">
+                      ⚠ {item}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs leading-5 text-amber-900/80">
+                  These are ingredient-text matches, not medical clearance or a guarantee that a product is safe for you.
+                </p>
+              </div>
+            )}
+
             <div className="rounded-2xl bg-white/45 p-5">
               <h2 className="text-sm font-bold uppercase tracking-[.13em] text-slate-500">
                 Ingredients
@@ -345,6 +421,23 @@ export default function ProductSummary({
                       {item.name}
                       {item.percentage != null ? ` · ${item.percentage}%` : ""}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {ingredientExplanations.length > 0 && (
+              <div className="rounded-2xl bg-amber-50/55 p-5">
+                <h2 className="text-sm font-bold uppercase tracking-[.13em] text-amber-800">
+                  Ingredient deep dive
+                </h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {ingredientExplanations.map((item, index) => (
+                    <div key={item.name + index} className="rounded-xl bg-white/70 p-4">
+                      <p className="font-bold text-slate-900">{item.name}</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-amber-700">{item.purpose}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700">{item.explanation}</p>
+                    </div>
                   ))}
                 </div>
               </div>
