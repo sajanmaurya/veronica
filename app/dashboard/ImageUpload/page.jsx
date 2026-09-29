@@ -209,18 +209,6 @@ const ImageUpload = () => {
           {/* Primary camera */}
           {!image ? (
             <div className="w-full overflow-hidden rounded-3xl border border-white/40 bg-slate-950 shadow-xl">
-              <div className="flex items-center justify-between px-5 py-3 text-white">
-                <div>
-                  <p className="text-sm font-bold">Camera</p>
-                  <p className="mt-0.5 text-xs text-slate-300">
-                    Point your camera at the ingredients or Nutrition Facts.
-                  </p>
-                </div>
-                <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                  Live
-                </span>
-              </div>
-
               <div className="relative h-[180px] sm:h-[210px] bg-black">
                 <video
                   ref={videoRef}
