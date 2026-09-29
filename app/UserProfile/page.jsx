@@ -11,6 +11,7 @@ const UserProfile = () => {
   const [diseases, setDiseases] = useState("");
   const [allergies, setAllergies] = useState("");
   const [dietaryPreferences, setDietaryPreferences] = useState("");
+  const [driveStatus, setDriveStatus] = useState("checking");
 
   useEffect(() => {
     if (profile) {
@@ -21,6 +22,37 @@ const UserProfile = () => {
       setDietaryPreferences(profile.dietaryPreferences || "");
     }
   }, [profile]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDriveProfile() {
+      try {
+        const response = await fetch("/api/drive/profile");
+        if (!response.ok) throw new Error("Drive unavailable");
+
+        const data = await response.json();
+        if (active) {
+          setDriveStatus("connected");
+
+          if (data?.profile) {
+            setProfile(data.profile);
+            localStorage.setItem(
+              "veronica-profile",
+              JSON.stringify(data.profile)
+            );
+          }
+        }
+      } catch {
+        if (active) setDriveStatus("not-connected");
+      }
+    }
+
+    loadDriveProfile();
+    return () => {
+      active = false;
+    };
+  }, [setProfile]);
 
   const handleSave = async () => {
     try {
@@ -35,7 +67,20 @@ const UserProfile = () => {
 
       localStorage.setItem("veronica-profile", JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
-      toast.success("Profile updated");
+
+      const driveResponse = await fetch("/api/drive/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: updatedProfile }),
+      });
+
+      if (driveResponse.ok) {
+        setDriveStatus("connected");
+        toast.success("Profile updated and backed up to Google Drive");
+      } else {
+        setDriveStatus("not-connected");
+        toast.success("Profile updated locally");
+      }
     } catch (error) {
       toast.error("Failed to update profile");
     }
@@ -105,6 +150,38 @@ const UserProfile = () => {
               className="glass-input mt-1 block"
               placeholder="e.g. Peanuts, Gluten"
             />
+          </div>
+
+          <div className="rounded-2xl border border-white/70 bg-white/45 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Google Drive backup</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  New analyses, images, and this profile can be stored in your private Veronica app data.
+                </p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                  driveStatus === "connected"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : driveStatus === "checking"
+                      ? "bg-slate-100 text-slate-600"
+                      : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {driveStatus === "connected"
+                  ? "Connected"
+                  : driveStatus === "checking"
+                    ? "Checking"
+                    : "Connect Google"}
+              </span>
+            </div>
+            {driveStatus === "not-connected" && (
+              <p className="mt-3 text-[11px] leading-5 text-slate-600">
+                Open the account menu → Manage account → Google and reconnect Google
+                if you have not granted Veronica the Drive permission yet.
+              </p>
+            )}
           </div>
 
           <button
