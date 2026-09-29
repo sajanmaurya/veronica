@@ -1,5 +1,6 @@
 import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/app/utils/prisma";
+import { listDriveAnalyses } from "@/lib/googleDrive";
 
 export const config = {
   api: {
@@ -56,12 +57,27 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     try {
-      const searches = await prisma.productSearch.findMany({
+      // New analyses are stored in Google Drive when the user has granted
+      // Veronica the Drive app-data permission. Keep the existing database
+      // records visible so connecting Drive never makes old history disappear.
+      let driveSearches = [];
+      try {
+        driveSearches = await listDriveAnalyses(userId);
+      } catch (driveError) {
+        console.warn("Google Drive history unavailable:", driveError?.message);
+      }
+
+      const databaseSearches = await prisma.productSearch.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
       });
 
-      return res.status(200).json(searches);
+      const merged = [...driveSearches, ...databaseSearches].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      return res.status(200).json(merged);
     } catch (error) {
       console.error("Failed to fetch product searches:", error);
 
