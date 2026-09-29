@@ -221,7 +221,7 @@ const ImageUpload = () => {
                 </span>
               </div>
 
-              <div className="relative aspect-[4/3] bg-black">
+              <div className="relative aspect-[16/9] max-h-[300px] bg-black">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -248,7 +248,7 @@ const ImageUpload = () => {
                   type="button"
                   onClick={capturePhoto}
                   disabled={Boolean(cameraError) || !cameraActive}
-                  className="w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   📷 Capture photo
                 </button>
