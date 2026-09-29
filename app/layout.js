@@ -37,7 +37,7 @@ export default function RootLayout({ children }) {
         <body
           className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
         >
-          <Header />
+          <Header clerkEnabled={Boolean(publishableKey)} />
           <ServiceWorkerRegistration />
 
           <div className="app-content">
