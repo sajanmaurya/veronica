@@ -221,7 +221,7 @@ const ImageUpload = () => {
                 </span>
               </div>
 
-              <div className="relative aspect-[16/9] max-h-[300px] bg-black">
+              <div className="relative h-[180px] sm:h-[210px] bg-black">
                 <video
                   ref={videoRef}
                   autoPlay
