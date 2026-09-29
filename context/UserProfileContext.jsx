@@ -11,6 +11,7 @@ export const UserProfileProvider = ({ children }) => {
     email: "guest@example.com",
     diseases: "",
     allergies: "",
+    dietaryPreferences: "",
   });
   const [loading, setLoading] = useState(false);
 
