@@ -297,10 +297,11 @@ export default function ProductSummary({
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20">
-                <span className="text-3xl font-semibold">{healthRating}</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">
-                  Health rating / 10
+              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full bg-emerald-700 px-2 text-center text-white shadow-lg shadow-emerald-900/20">
+                <span className="text-3xl font-semibold leading-none">{healthRating}</span>
+                <span className="mt-1 text-[8px] font-bold uppercase leading-3 tracking-[0.08em] text-emerald-100">
+                  Health rating
+                  <span className="block">/ 10</span>
                 </span>
               </div>
               <div className="text-left">
