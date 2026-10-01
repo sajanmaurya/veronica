@@ -1,24 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { nutritionBasisLabel, toFiniteNumber } from "@/lib/nutrition.mjs";
+import { localDateKey, periodStart, sumAnalyzedNutrition } from "@/lib/scan-insights.mjs";
 
 const REFERENCE = {
-  calories: { label: "Calories", value: 2000, unit: "kcal", direction: "limit", note: "general guide" },
-  added_sugar_g: { label: "Added sugar", value: 50, unit: "g", direction: "limit" },
-  saturated_fat_g: { label: "Saturated fat", value: 20, unit: "g", direction: "limit" },
-  sodium_mg: { label: "Sodium", value: 2300, unit: "mg", direction: "limit" },
-  fiber_g: { label: "Fiber", value: 28, unit: "g", direction: "goal" },
-  protein_g: { label: "Protein", value: 50, unit: "g", direction: "goal" },
+  calories: { unit: "kcal" },
+  added_sugar_g: { unit: "g" },
+  saturated_fat_g: { unit: "g" },
+  sodium_mg: { unit: "mg" },
+  fiber_g: { unit: "g" },
+  protein_g: { unit: "g" },
 };
-
-const TRACKED_KEYS = [
-  "calories",
-  "added_sugar_g",
-  "saturated_fat_g",
-  "sodium_mg",
-  "fiber_g",
-  "protein_g",
-];
 
 function formatDate(value) {
   if (!value) return "Unknown date";
@@ -70,77 +63,15 @@ function HistoryImage({ src, name }) {
   );
 }
 
-function getNutrition(search) {
-  const n = search?.aiData?.nutrition;
-  return n && typeof n === "object" ? n : {};
-}
-
-function sumNutrition(searches) {
-  return searches.reduce((totals, search) => {
-    const n = getNutrition(search);
-
-    TRACKED_KEYS.forEach((key) => {
-      const value = Number(n[key]);
-      if (Number.isFinite(value)) {
-        totals[key] += value;
-        totals.has[key] = true;
-      }
-    });
-
-    return totals;
-  }, {
-    calories: 0,
-    added_sugar_g: 0,
-    saturated_fat_g: 0,
-    sodium_mg: 0,
-    fiber_g: 0,
-    protein_g: 0,
-    has: {
-      calories: false,
-      added_sugar_g: false,
-      saturated_fat_g: false,
-      sodium_mg: false,
-      fiber_g: false,
-      protein_g: false,
-    },
-  });
-}
-
-function nutrientStatus(key, value) {
-  if (value == null || !REFERENCE[key]) return "Not tracked";
-
-  const reference = REFERENCE[key];
-  const percentage = (value / reference.value) * 100;
-
-  if (reference.direction === "limit") {
-    if (percentage > 100) return "Above reference";
-    if (percentage >= 80) return "Near reference";
-    return "Within reference";
-  }
-
-  if (percentage >= 100) return "Reference reached";
-  return "Below reference";
-}
-
-function statusClass(status) {
-  if (status === "Above reference") return "text-rose-700";
-  if (status === "Near reference") return "text-amber-700";
-  if (status === "Reference reached") return "text-emerald-700";
-  if (status === "Within reference") return "text-emerald-700";
-  return "text-slate-700";
-}
-
 function NutrientCard({ label, value, referenceKey, decimals = 0 }) {
   const ref = REFERENCE[referenceKey];
   const hasValue = value != null && Number.isFinite(Number(value));
-  const percentage = hasValue ? Math.min((Number(value) / ref.value) * 100, 100) : 0;
-  const status = hasValue ? nutrientStatus(referenceKey, Number(value)) : "Not tracked";
 
   return (
     <div className="rounded-[1.4rem] bg-white/58 p-4 ring-1 ring-inset ring-white/70">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-bold uppercase tracking-[.12em] text-slate-700">{label}</p>
-        <span className={`text-[10px] font-semibold ${statusClass(status)}`}>{status}</span>
+        <span className="text-[10px] font-semibold text-slate-500">{hasValue ? "Known labels" : "Unavailable"}</span>
       </div>
 
       <div className="mt-3 flex items-end gap-1.5">
@@ -150,29 +81,20 @@ function NutrientCard({ label, value, referenceKey, decimals = 0 }) {
         <span className="pb-0.5 text-xs font-medium text-slate-700">{ref.unit}</span>
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-900/8">
-        <div
-          className="h-full rounded-full bg-emerald-600/70 transition-all"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-
       <p className="mt-2 text-[11px] leading-4 text-slate-700">
-        {ref.direction === "limit" ? "< " : "≥ "}
-        {formatNumber(ref.value, 0)} {ref.unit}
-        {referenceKey === "calories" ? " general guide" : " general daily reference"}
+        Total across known analyzed servings
       </p>
     </div>
   );
 }
 
 function DayBar({ label, value, max, unit }) {
-  const height = max > 0 ? Math.max(5, Math.min((value / max) * 100, 100)) : 5;
+  const height = value != null && max > 0 ? Math.max(0, Math.min((value / max) * 100, 100)) : 0;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
       <span className="text-[10px] font-medium text-slate-700">
-        {value > 0 ? `${formatNumber(value, 0)}${unit}` : "—"}
+        {value != null ? `${formatNumber(value, 0)}${unit}` : "—"}
       </span>
       <div className="flex h-28 w-full items-end justify-center rounded-2xl bg-white/45 px-1.5 ring-1 ring-inset ring-white/65">
         <div
@@ -230,7 +152,7 @@ export default function PreviousSearchesPage() {
 
   const periodSearches = useMemo(() => {
     const days = Number(period);
-    const cutoff = Date.now() - (days - 1) * 24 * 60 * 60 * 1000;
+    const cutoff = periodStart(days).getTime();
 
     return visibleSearches.filter((search) => {
       const time = new Date(search.createdAt).getTime();
@@ -238,7 +160,7 @@ export default function PreviousSearchesPage() {
     });
   }, [visibleSearches, period]);
 
-  const totals = useMemo(() => sumNutrition(periodSearches), [periodSearches]);
+  const totals = useMemo(() => sumAnalyzedNutrition(periodSearches), [periodSearches]);
 
   const dailyData = useMemo(() => {
     const days = Number(period);
@@ -249,26 +171,25 @@ export default function PreviousSearchesPage() {
       date.setHours(0, 0, 0, 0);
       date.setDate(date.getDate() - i);
 
-      const key = date.toISOString().slice(0, 10);
+      const key = localDateKey(date);
       const daySearches = periodSearches.filter((search) => {
-        const d = new Date(search.createdAt);
-        return d.toISOString().slice(0, 10) === key;
+        return localDateKey(search.createdAt) === key;
       });
 
-      const dayTotals = sumNutrition(daySearches);
+      const dayTotals = sumAnalyzedNutrition(daySearches);
 
       result.push({
         key,
         label: date.toLocaleDateString("en-IN", { weekday: "short" }),
-        calories: dayTotals.has.calories ? dayTotals.calories : 0,
-        sugar: dayTotals.has.added_sugar_g ? dayTotals.added_sugar_g : 0,
+        calories: dayTotals.has.calories ? dayTotals.calories : null,
+        sugar: dayTotals.has.added_sugar_g ? dayTotals.added_sugar_g : null,
       });
     }
 
     return result;
   }, [periodSearches, period]);
 
-  const maxCalories = Math.max(...dailyData.map((day) => day.calories), 2000);
+  const maxCalories = Math.max(...dailyData.map((day) => day.calories), 1);
   const ingredientInsights = useMemo(() => {
     const map = new Map();
 
@@ -286,21 +207,23 @@ export default function PreviousSearchesPage() {
           amount: 0,
           hasAmount: false,
           percentage: 0,
+          percentageCount: 0,
           hasPercentage: false,
           appearances: 0,
         };
 
         current.appearances += 1;
 
-        const amount = Number(ingredient.amount_g_per_serving);
-        if (Number.isFinite(amount)) {
+        const amount = toFiniteNumber(ingredient.amount_g_per_serving);
+        if (amount !== null && amount >= 0) {
           current.amount += amount;
           current.hasAmount = true;
         }
 
-        const percentage = Number(ingredient.percentage);
-        if (Number.isFinite(percentage)) {
+        const percentage = toFiniteNumber(ingredient.percentage);
+        if (percentage !== null && percentage >= 0 && percentage <= 100) {
           current.percentage += percentage;
+          current.percentageCount += 1;
           current.hasPercentage = true;
         }
 
@@ -343,9 +266,9 @@ export default function PreviousSearchesPage() {
                 Track what you analyze
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
-                See calories, sugar, key nutrients, and major ingredients across
-                the foods you've analyzed. This is tracked from analyzed servings,
-                not a complete record of everything you ate.
+                Explore the foods you've scanned. Nutrition totals use labels
+                with a known serving size or serving basis. Scanning a product
+                does not record that you ate it.
               </p>
             </div>
 
@@ -389,7 +312,7 @@ export default function PreviousSearchesPage() {
                   </h2>
                 </div>
                 <span className="text-xs font-medium text-slate-700">
-                  {periodSearches.length} analyzed serving{periodSearches.length === 1 ? "" : "s"}
+                  {periodSearches.length} analyzed product{periodSearches.length === 1 ? "" : "s"}
                 </span>
               </div>
 
@@ -432,14 +355,10 @@ export default function PreviousSearchesPage() {
               <div className="glass-panel p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <span className="eyebrow">7-day view</span>
+                    <span className="eyebrow">{period === "1" ? "Today" : `${period}-day view`}</span>
                     <h2 className="mt-1 text-xl font-semibold text-slate-900">
                       Calories tracked
                     </h2>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-700">Reference</p>
-                    <p className="text-sm font-semibold text-slate-700">2,000 kcal/day*</p>
                   </div>
                 </div>
 
@@ -469,20 +388,9 @@ export default function PreviousSearchesPage() {
                   <span className="pb-1 text-sm text-slate-700">g tracked</span>
                 </div>
 
-                <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-900/8">
-                  <div
-                    className="h-full rounded-full bg-amber-500/65"
-                    style={{
-                      width: `${Math.min(
-                        ((totals.has.added_sugar_g ? totals.added_sugar_g : 0) / 50) * 100,
-                        100
-                      )}%`,
-                    }}
-                  />
-                </div>
-
                 <p className="mt-3 text-xs leading-5 text-slate-700">
-                  General reference: less than 50 g/day on a 2,000-calorie diet.*
+                  From scanned labels with known serving data. This does not
+                  measure sugar eaten.
                 </p>
               </div>
             </section>
@@ -490,7 +398,7 @@ export default function PreviousSearchesPage() {
             <section className="mb-8 glass-panel p-5 sm:p-6">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <span className="eyebrow">Ingredient exposure</span>
+                  <span className="eyebrow">Ingredient patterns</span>
                   <h2 className="mt-1 text-xl font-semibold text-slate-900">
                     Major ingredients tracked
                   </h2>
@@ -528,9 +436,9 @@ export default function PreviousSearchesPage() {
 
                       {ingredient.hasPercentage && (
                         <p className="mt-1 text-xs text-slate-700">
-                          Explicit ingredient percentages totaled across analyzed servings:
+                          Average declared percentage across {ingredient.percentageCount} label{ingredient.percentageCount === 1 ? "" : "s"}:
                           {" "}
-                          {formatNumber(ingredient.percentage, 1)}%
+                          {formatNumber(ingredient.percentage / ingredient.percentageCount, 1)}%
                         </p>
                       )}
 
@@ -564,7 +472,7 @@ export default function PreviousSearchesPage() {
                   const rating = Number(search.aiData?.rating) || 0;
                   const image = search.imageFrontUrl || search.imageNutritionImage || null;
                   const name = search.productName || "Unknown product";
-                  const nutrition = getNutrition(search);
+                  const nutrition = search.aiData?.nutrition || {};
 
                   return (
                     <article
@@ -596,6 +504,9 @@ export default function PreviousSearchesPage() {
                             <span>• {formatNumber(nutrition.added_sugar_g, 1)}g sugar</span>
                           )}
                         </div>
+                        <p className="mt-1 text-[10px] text-slate-600">
+                          {nutritionBasisLabel(nutrition.label_basis)}
+                        </p>
 
                         <div className="mt-2 border-t border-white/55 pt-2">
                           <time dateTime={search.createdAt} className="text-[10px] font-medium text-slate-700">
@@ -610,9 +521,9 @@ export default function PreviousSearchesPage() {
             </section>
 
             <p className="mt-6 text-center text-[11px] leading-5 text-slate-700">
-              * General FDA Daily Values/reference amounts. 2,000 calories/day is a
-              general guide; individual calorie and nutrient needs vary. Tracked totals
-              reflect analyzed serving data and may not represent everything consumed.
+              These insights describe scanned products. Totals include only known
+              serving data; unavailable values are not counted as zero. Scans do
+              not record food eaten.
             </p>
           </>
         )}
