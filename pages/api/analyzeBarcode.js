@@ -1,3 +1,8 @@
+import {
+  createNutritionSummary, normalizeNutrition, nutritionFromOpenFoodFacts,
+  openFoodFactsSource, toFiniteNumber,
+} from "@/lib/nutrition.mjs";
+
 const MODEL_NAME = "qwen/qwen3.8-27b";
 
 const schema = {
@@ -148,7 +153,8 @@ ${JSON.stringify({
     // Open Food Facts already provides the ingredient list for barcode
     // products. Keep that source data in the final response instead of relying
     // on the AI to reproduce it.
-    const sourceIngredients = String(product.ingredients || "").trim();
+    const sourceIngredients = Array.isArray(product.ingredients)
+      ? product.ingredients.join(", ") : String(product.ingredients || "").trim();
     const ingredients =
       sourceIngredients && sourceIngredients.toLowerCase() !== "unknown"
         ? sourceIngredients
@@ -157,15 +163,23 @@ ${JSON.stringify({
             .filter(Boolean)
         : [];
 
+    const normalized = normalizeNutrition(nutritionFromOpenFoodFacts(product));
+    const nutritionSource = openFoodFactsSource(product);
+
     return res.status(200).json({
       success: true,
       data: {
+        ...product,
         ...data,
         product_category: product.categories || product.pnns_groups_2 || product.pnns_groups_1 || "Unknown",
         ingredients,
+        nutrition: normalized.nutrition,
+        nutrition_validation: normalized.validation,
+        nutrition_source: nutritionSource,
+        nutrition_summary: createNutritionSummary(normalized.nutrition, nutritionSource),
         nutriscore_grade: product.nutriscore_grade || null,
         nutriscore_score:
-          product.nutriscore_score != null ? Number(product.nutriscore_score) : null,
+          toFiniteNumber(product.nutriscore_score),
         rating: cleanRating(data.rating),
       },
     });

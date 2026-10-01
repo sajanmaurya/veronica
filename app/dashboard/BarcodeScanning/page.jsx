@@ -358,12 +358,7 @@ const BarcodeScanning = () => {
       );
 
       // Analyze the product with Groq
-      await analyzeProduct(
-        JSON.stringify(product),
-        name,
-        frontImage,
-        nutritionImage
-      );
+      await analyzeProduct(JSON.stringify(product));
 
     } catch (error) {
       console.error("Error fetching product:", error);
@@ -380,12 +375,7 @@ const BarcodeScanning = () => {
   // GEMINI AI ANALYSIS
   // =====================================================
 
-  const analyzeProduct = async (
-    productData,
-    currentProductName,
-    currentImageFrontUrl,
-    currentImageNutritionImage
-  ) => {
+  const analyzeProduct = async (productData) => {
     try {
       setLoading(true);
 
@@ -409,25 +399,6 @@ const BarcodeScanning = () => {
       }
 
       setAiData(result.data);
-
-      try {
-        const saveResponse = await fetch("/api/previousSearches/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productName: currentProductName || "Unknown Product",
-            imageFrontUrl: currentImageFrontUrl || null,
-            imageNutritionImage: currentImageNutritionImage || null,
-            aiData: result.data,
-          }),
-        });
-
-        if (saveResponse.status !== 401 && !saveResponse.ok) {
-          console.error("Failed to save previous search:", await saveResponse.json());
-        }
-      } catch (saveError) {
-        console.error("Error saving previous search:", saveError);
-      }
 
       toast.success("Product analysis completed!");
     } catch (error) {

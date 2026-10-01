@@ -1,36 +1,4 @@
-// export default async function handler(req, res) {
-//   const { barcode } = req.query;
-
-//   if (!barcode) {
-//     return res.status(400).json({ error: "Barcode is required" });
-//   }
-
-//   try {
-//     const response = await fetch(
-//       `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
-//     );
-
-//     if (!response.ok) {
-//       const errorText = await response.text();
-//       console.error("API Error Response:", errorText);
-//       throw new Error(
-//         `Failed to fetch data from OpenFoodFacts: ${response.statusText}`
-//       );
-//     }
-
-//     const data = await response.json();
-
-//     if (data.status === 1 && data.product) {
-//       res.status(200).json({ success: true, data });
-//       console.log(data, "product data from openfoodfacts");
-//     } else {
-//       res.status(404).json({ success: false, error: "Product not found" });
-//     }
-//   } catch (error) {
-//     console.error("Error fetching product details:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// }
+import { offNutritionBasis, openFoodFactsSource } from "@/lib/nutrition.mjs";
 
 const cleanFoodData = (product) => ({
   barcode: product.code || "Unknown",
@@ -50,6 +18,11 @@ const cleanFoodData = (product) => ({
   serving_quantity: product.serving_quantity || "Unknown",
   serving_quantity_unit: product.serving_quantity_unit || "Unknown",
 
+  nutriments: product.nutriments || {},
+  nutrition_data_per: product.nutrition_data_per || null,
+  nutrients_per_100g_basis: offNutritionBasis(product),
+  nutrition_source: openFoodFactsSource(product),
+  last_modified_t: product.last_modified_t ?? null,
   nutrients_per_100g: Object.fromEntries(
     Object.entries(product.nutriments || {})
       .filter(([key]) => key.endsWith("_100g"))
@@ -60,7 +33,7 @@ const cleanFoodData = (product) => ({
   nutriscore_grade:
     product.nutriscore_grade || product.nutriscore_2023_tags?.[0] || "Unknown",
   nutriscore_score:
-    product.nutriscore_score || product.nutrition_score_fr || "Unknown",
+    product.nutriscore_score ?? product.nutrition_score_fr ?? null,
   nutriscore_version: product.nutriscore_version || "2023",
   ecoscore_grade: product.ecoscore_grade || "Unknown",
   ecoscore_version: product.ecoscore_version || "2023",

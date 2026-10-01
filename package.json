@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma migrate deploy && next build",
+    "build:check": "next build",
+    "test": "node --test tests/*.test.mjs",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate"

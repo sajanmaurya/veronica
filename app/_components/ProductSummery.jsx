@@ -3,20 +3,13 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
+import { createHistorySaver, prepareHistoryImage } from "@/lib/history.mjs";
+import { nutritionBasisLabel } from "@/lib/nutrition.mjs";
 
 async function makePermanentImageData(sourceUrl) {
-  if (!sourceUrl) return null;
-
-  if (sourceUrl.startsWith("data:")) {
-    return sourceUrl;
-  }
-
-  if (!sourceUrl.startsWith("blob:")) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(sourceUrl);
+  return prepareHistoryImage(sourceUrl, async (blobUrl) => {
+    const response = await fetch(blobUrl);
+    if (!response.ok) throw new Error("Could not read the product image.");
     const blob = await response.blob();
 
     const bitmap = await createImageBitmap(blob);
@@ -32,17 +25,14 @@ async function makePermanentImageData(sourceUrl) {
     const context = canvas.getContext("2d");
     if (!context) {
       bitmap.close();
-      return null;
+      throw new Error("Could not prepare the product image.");
     }
 
     context.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
 
     return canvas.toDataURL("image/webp", 0.78);
-  } catch (error) {
-    console.error("Could not prepare history image:", error);
-    return null;
-  }
+  });
 }
 
 async function uploadHistoryImage(imageData, folder) {
@@ -87,6 +77,23 @@ async function uploadHistoryImage(imageData, folder) {
   return data.url;
 }
 
+const saveHistory = createHistorySaver({
+  prepareImage: makePermanentImageData,
+  uploadImage: uploadHistoryImage,
+  save: async (record) => {
+    const response = await fetch("/api/previousSearches/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result?.error || "Failed to save search");
+    }
+    return result;
+  },
+});
+
 export default function ProductSummary({
   aiData,
   productName,
@@ -96,6 +103,7 @@ export default function ProductSummary({
   const { user } = useUser();
   const { profile } = useUserProfile();
   const [error, setError] = useState(null);
+  const [historyRetry, setHistoryRetry] = useState(0);
   const [alternatives, setAlternatives] = useState([]);
   const [alternativesLoading, setAlternativesLoading] = useState(false);
   const [alternativesMessage, setAlternativesMessage] = useState("");
@@ -153,50 +161,20 @@ export default function ProductSummary({
   useEffect(() => {
     let cancelled = false;
 
+    setError(null);
+
     async function saveSearch() {
-      if (!user || !aiData) return;
+      if (!user?.id || !aiData) return;
 
       try {
-        const frontImageData = await makePermanentImageData(imageFrontUrl);
-        const nutritionImageData = await makePermanentImageData(
-          imageNutritionImage
-        );
-
-        if (cancelled) return;
-
-        const [permanentFrontUrl, permanentNutritionUrl] = await Promise.all([
-          uploadHistoryImage(frontImageData, "history-front"),
-          uploadHistoryImage(nutritionImageData, "history-label"),
-        ]);
-
-        if (cancelled) return;
-
-        const res = await fetch("/api/previousSearches/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productName:
-              productName ||
-              aiData.product_name ||
-              "Unknown product",
-            imageFrontUrl: permanentFrontUrl,
-            imageNutritionImage: permanentNutritionUrl,
-            aiData,
-          }),
+        await saveHistory({
+          userId: user.id,
+          aiData,
+          productName,
+          imageFrontUrl,
+          imageNutritionImage,
+          isCurrent: () => !cancelled,
         });
-
-        if (!res.ok) {
-          const responseText = await res.text();
-          let message = "Failed to save search";
-
-          try {
-            message = JSON.parse(responseText).error || message;
-          } catch {
-            console.error("Unexpected history API response:", responseText);
-          }
-
-          throw new Error(message);
-        }
 
         if (!cancelled) setError(null);
       } catch (err) {
@@ -212,13 +190,14 @@ export default function ProductSummary({
     return () => {
       cancelled = true;
     };
-  }, [aiData, imageFrontUrl, imageNutritionImage, productName, user]);
+  }, [aiData, imageFrontUrl, imageNutritionImage, productName, user?.id, historyRetry]);
 
   if (!aiData) return null;
 
   const rating = Number(aiData.rating) || 0;
   const nutrition = aiData.nutrition || {};
   const nutritionValidation = aiData.nutrition_validation || {};
+  const nutritionSource = aiData.nutrition_source || {};
   const nutritionItems = [
     ["Calories", nutrition.calories, "kcal"],
     ["Added sugar", nutrition.added_sugar_g, "g"],
@@ -310,11 +289,12 @@ export default function ProductSummary({
               <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-emerald-700 px-2 text-center text-white shadow-lg shadow-emerald-900/20">
                 <span className="text-3xl font-semibold leading-none">{healthRating}</span>
                 <span className="mt-1 text-[8px] font-bold uppercase leading-3 tracking-[0.08em] text-emerald-100">
-                  Health rating
+                  AI assessment
                   <span className="block">/ 10</span>
                 </span>
               </div>
               <div>
+                <p className="text-[10px] font-semibold text-slate-500">Veronica grade</p>
                 <p className="text-3xl font-bold leading-none text-slate-900">{scoreGrade}</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">{scoreLabel}</p>
                 {nutriScoreGrade && nutriScoreGrade !== "UNKNOWN" && (
@@ -340,12 +320,24 @@ export default function ProductSummary({
                 </div>
                 {nutrition.serving_size && (
                   <span className="rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-500">
-                    {nutrition.serving_size}
+                    Package serving: {nutrition.serving_size}
                   </span>
                 )}
               </div>
 
-              {nutritionValidation.message && nutritionValidation.status !== "verified" && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span className="font-semibold">{nutritionBasisLabel(nutrition.label_basis)}</span>
+                {nutritionSource.name && (
+                  typeof nutritionSource.url === "string" && nutritionSource.url.startsWith("https://") ? (
+                    <a href={nutritionSource.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                      Source: {nutritionSource.name}
+                    </a>
+                  ) : <span>Source: {nutritionSource.name}</span>
+                )}
+                <span>— means unavailable</span>
+              </div>
+
+              {nutritionValidation.message && nutritionValidation.status === "needs_verification" && (
                 <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                   {nutritionValidation.message}
                 </p>
@@ -385,7 +377,9 @@ export default function ProductSummary({
                 </div>
                 {nutritionValidation.status && (
                   <p className="mt-3 text-[11px] leading-5 text-slate-500">
-                    {nutritionValidation.status === "verified" ? "Basic label consistency checks passed." : "Some values need verification against the package label."}
+                    {nutritionValidation.status === "checked" || nutritionValidation.status === "verified"
+                      ? "Available values passed basic consistency checks. Confirm them against the package label."
+                      : "Some values need confirmation against the package label."}
                   </p>
                 )}
               </details>
@@ -565,9 +559,16 @@ export default function ProductSummary({
           </div>
 
           {error && (
-            <p className="mt-5 text-sm text-rose-700">
-              Could not save this result: {error}
-            </p>
+            <div className="mt-5 text-sm text-rose-700" role="alert">
+              <p>Could not save this result: {error}</p>
+              <button
+                type="button"
+                onClick={() => setHistoryRetry((attempt) => attempt + 1)}
+                className="mt-2 rounded-lg border border-rose-300 px-3 py-2 font-semibold hover:bg-rose-50"
+              >
+                Retry saving
+              </button>
+            </div>
           )}
         </div>
       </div>
