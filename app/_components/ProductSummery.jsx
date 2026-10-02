@@ -413,53 +413,6 @@ export default function ProductSummary({
               </div>
             )}
 
-            {highlights.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {highlights.map((item, index) => (
-                  <span
-                    key={index}
-                    className={
-                      item.type === "good"
-                        ? "rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
-                        : item.type === "warn"
-                        ? "rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"
-                        : "rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600"
-                    }
-                  >
-                    {item.text}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <p className="mt-3 text-[13px] leading-5 text-slate-700 sm:text-sm sm:leading-6">
-              {aiData.summary || "No summary was returned."}
-            </p>
-
-            {(allergyWarnings.length > 0 || dietaryWarnings.length > 0) && (
-              <div className="mt-4 rounded-2xl bg-amber-50 p-4">
-                <p className="text-xs font-bold text-amber-900">For your profile</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {allergyWarnings.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full bg-rose-100 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700"
-                    >
-                      Possible {item} match
-                    </span>
-                  ))}
-                  {dietaryWarnings.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-700"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="mt-5">
               <div className="flex items-end justify-between gap-3">
                 <div>
@@ -514,6 +467,54 @@ export default function ProductSummary({
                 })}
               </div>
             </div>
+
+
+            {highlights.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {highlights.map((item, index) => (
+                  <span
+                    key={index}
+                    className={
+                      item.type === "good"
+                        ? "rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                        : item.type === "warn"
+                        ? "rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"
+                        : "rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600"
+                    }
+                  >
+                    {item.text}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <p className="mt-3 text-[13px] leading-5 text-slate-700 sm:text-sm sm:leading-6">
+              {aiData.summary || "No summary was returned."}
+            </p>
+
+            {(allergyWarnings.length > 0 || dietaryWarnings.length > 0) && (
+              <div className="mt-4 rounded-2xl bg-amber-50 p-4">
+                <p className="text-xs font-bold text-amber-900">For your profile</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {allergyWarnings.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full bg-rose-100 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700"
+                    >
+                      Possible {item} match
+                    </span>
+                  ))}
+                  {dietaryWarnings.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-700"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {visibleIngredients.length > 0 ? (
               <div className="mt-4">
