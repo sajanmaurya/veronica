@@ -289,17 +289,15 @@ export default function ProductSummary({
   const healthRating = ratingVerified
     ? Math.round(Math.min(10, Math.max(0, Number(aiData.rating) || 0)) * 10) / 10
     : null;
-  const scoreLabel = !ratingVerified
-    ? "Needs verification"
+  const consumptionFrequency = !ratingVerified
+    ? "Verify first"
     : healthRating >= 8
-    ? "Strong"
-    : healthRating >= 6.5
-    ? "Good"
-    : healthRating >= 5
-    ? "Mixed"
-    : healthRating >= 3.5
-    ? "Needs attention"
-    : "Occasional";
+    ? "Regular"
+    : healthRating >= 6
+    ? "Moderate"
+    : healthRating >= 4
+    ? "Occasional"
+    : "Rarely";
 
   const nutriScoreGrade = String(aiData.nutriscore_grade || "").toUpperCase();
 
@@ -343,7 +341,7 @@ export default function ProductSummary({
       <div className="mx-auto w-full px-1.5 sm:max-w-3xl sm:px-5">
         <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-[0_12px_34px_rgba(15,23,42,.07)] backdrop-blur-xl sm:rounded-[1.75rem]">
           <div className="p-3.5 sm:p-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               {(imageFrontUrl || imageNutritionImage) && (
                 <img
                   src={imageFrontUrl || imageNutritionImage}
@@ -356,7 +354,7 @@ export default function ProductSummary({
                 <p className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-700">
                   Analysis complete
                 </p>
-                <h1 className="mt-1 truncate text-xl font-semibold tracking-[-.03em] text-slate-950 sm:text-2xl">
+                <h1 className="mt-1 line-clamp-2 text-lg font-semibold leading-tight tracking-[-.03em] text-slate-950 sm:text-2xl">
                   {productName || aiData.product_name || "Unknown product"}
                 </h1>
                 {aiData.product_category && aiData.product_category !== "Unknown" && (
@@ -364,45 +362,43 @@ export default function ProductSummary({
                     {cleanCategory(aiData.product_category)}
                   </p>
                 )}
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {aiData.product_quantity && (
-                    <span className="rounded-full bg-white/80 px-2 py-1 text-[9px] font-semibold text-slate-600">
-                      Pack {aiData.product_quantity}
-                    </span>
-                  )}
-                  <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.nutrition_source)}`}>
-                    Nutrition: {sourceLabel(aiData.nutrition_source)}
-                  </span>
-                  <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.ingredients_source)}`}>
-                    Ingredients: {sourceLabel(aiData.ingredients_source)}
-                  </span>
-                </div>
               </div>
-            </div>
 
-            <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#0B5F4A] p-4 text-white">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[.15em] text-emerald-100">
-                  Veronica score
+              <div className="shrink-0 rounded-2xl bg-[#0B5F4A] px-3 py-2.5 text-right text-white">
+                <p className="text-[8px] font-bold uppercase tracking-[.12em] text-emerald-100">
+                  Score
                 </p>
-                <div className="mt-1 flex items-end gap-1">
-                  <span className="text-4xl font-semibold leading-none tracking-[-.05em]">
+                <div className="mt-0.5 flex items-end justify-end gap-0.5">
+                  <span className="text-2xl font-semibold leading-none tracking-[-.05em]">
                     {ratingVerified ? healthRating : "—"}
                   </span>
                   {ratingVerified && (
-                    <span className="mb-0.5 text-sm text-emerald-100">/10</span>
+                    <span className="mb-0.5 text-[10px] text-emerald-100">/10</span>
                   )}
                 </div>
+                <p className="mt-1 text-[10px] font-semibold leading-none">
+                  {consumptionFrequency}
+                </p>
               </div>
+            </div>
 
-              <div className="text-right">
-                <p className="text-sm font-semibold">{scoreLabel}</p>
-                {nutriScoreGrade && nutriScoreGrade !== "UNKNOWN" && (
-                  <p className="mt-1 text-[10px] text-emerald-100">
-                    Nutri-Score {nutriScoreGrade}
-                  </p>
-                )}
-              </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {aiData.product_quantity && (
+                <span className="rounded-full bg-white/80 px-2 py-1 text-[9px] font-semibold text-slate-600">
+                  Pack {aiData.product_quantity}
+                </span>
+              )}
+              <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.nutrition_source)}`}>
+                Nutrition: {sourceLabel(aiData.nutrition_source)}
+              </span>
+              <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.ingredients_source)}`}>
+                Ingredients: {sourceLabel(aiData.ingredients_source)}
+              </span>
+              {nutriScoreGrade && nutriScoreGrade !== "UNKNOWN" && (
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">
+                  Nutri-Score {nutriScoreGrade}
+                </span>
+              )}
             </div>
 
             {aiData.nutrition_validation?.status === "needs_verification" && (
