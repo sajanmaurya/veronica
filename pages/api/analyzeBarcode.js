@@ -42,6 +42,38 @@ const schema = {
   ],
 };
 
+
+function buildBarcodeNutrition(product) {
+  const source = product?.nutrients_per_100g || {};
+
+  const numberOrNull = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+
+  const sodiumGrams = numberOrNull(source.sodium);
+  const servingSize =
+    product?.serving_size && String(product.serving_size).toLowerCase() !== "unknown"
+      ? product.serving_size
+      : "per 100 g";
+
+  return {
+    serving_size: servingSize,
+    label_basis: "per_100g",
+    servings_per_container: null,
+    calories: numberOrNull(source["energy-kcal"] ?? source.energy_kcal),
+    total_fat_g: numberOrNull(source.fat),
+    saturated_fat_g: numberOrNull(source["saturated-fat"] ?? source.saturated_fat),
+    trans_fat_g: numberOrNull(source["trans-fat"] ?? source.trans_fat),
+    carbohydrates_g: numberOrNull(source.carbohydrates),
+    fiber_g: numberOrNull(source.fiber),
+    total_sugar_g: numberOrNull(source.sugars ?? source.sugar),
+    added_sugar_g: null,
+    protein_g: numberOrNull(source.proteins ?? source.protein),
+    sodium_mg: sodiumGrams == null ? null : Math.round(sodiumGrams * 1000),
+  };
+}
+
 function cleanRating(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
@@ -163,6 +195,12 @@ ${JSON.stringify({
         ...data,
         product_category: product.categories || product.pnns_groups_2 || product.pnns_groups_1 || "Unknown",
         ingredients,
+        nutrition: buildBarcodeNutrition(product),
+        nutrition_validation: {
+          status: "verified",
+          message: "Nutrition values came from the barcode product database.",
+          basis: "per_100g",
+        },
         nutriscore_grade: product.nutriscore_grade || null,
         nutriscore_score:
           product.nutriscore_score != null ? Number(product.nutriscore_score) : null,
