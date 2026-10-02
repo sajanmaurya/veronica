@@ -104,6 +104,15 @@ const toneBadge = {
   slate: "bg-slate-100 text-slate-600",
 };
 
+function cleanCategory(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().replace(/^en:/i, "").replace(/-/g, " "))
+    .filter((item) => item && item.toLowerCase() !== "unknown")
+    .slice(0, 2)
+    .join(" · ");
+}
+
 function buildHighlights(aiData) {
   const nutrition = aiData?.nutrition || {};
   const items = [];
@@ -128,10 +137,6 @@ function buildHighlights(aiData) {
   }
   if (satFat != null && satFat > 5) {
     items.push({ type: "warn", text: "High saturated fat" });
-  }
-
-  if (!items.length && aiData?.summary) {
-    items.push({ type: "neutral", text: "Balanced overall profile" });
   }
 
   return items.slice(0, 4);
@@ -293,10 +298,10 @@ export default function ProductSummary({
   ];
 
   return (
-    <section className="app-canvas py-4 sm:py-6">
-      <div className="mx-auto w-full max-w-3xl px-3 sm:px-5">
-        <div className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/55 shadow-[0_18px_60px_rgba(15,23,42,.08)] backdrop-blur-xl">
-          <div className="p-4 sm:p-6">
+    <section className="w-full py-2 sm:py-6">
+      <div className="mx-auto w-full px-1.5 sm:max-w-3xl sm:px-5">
+        <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-[0_12px_34px_rgba(15,23,42,.07)] backdrop-blur-xl sm:rounded-[1.75rem]">
+          <div className="p-3.5 sm:p-6">
             <div className="flex items-center gap-3">
               {(imageFrontUrl || imageNutritionImage) && (
                 <img
@@ -314,8 +319,8 @@ export default function ProductSummary({
                   {productName || aiData.product_name || "Unknown product"}
                 </h1>
                 {aiData.product_category && aiData.product_category !== "Unknown" && (
-                  <p className="mt-1 truncate text-xs text-slate-500">
-                    {aiData.product_category}
+                  <p className="mt-1 truncate text-[11px] text-slate-500">
+                    {cleanCategory(aiData.product_category)}
                   </p>
                 )}
               </div>
@@ -363,7 +368,7 @@ export default function ProductSummary({
               </div>
             )}
 
-            <p className="mt-4 text-sm leading-6 text-slate-700">
+            <p className="mt-3 text-[13px] leading-5 text-slate-700 sm:text-sm sm:leading-6">
               {aiData.summary || "No summary was returned."}
             </p>
 
@@ -446,6 +451,34 @@ export default function ProductSummary({
               </div>
             </div>
 
+            {visibleIngredients.length > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-700">
+                    Ingredients
+                  </p>
+                  <span className="text-[10px] text-slate-400">
+                    {visibleIngredients.length} found
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {visibleIngredients.slice(0, 6).map((ingredient, index) => (
+                    <span
+                      key={`${ingredient}-quick-${index}`}
+                      className="max-w-full truncate rounded-full bg-white/80 px-2.5 py-1.5 text-[10px] font-medium text-slate-700"
+                    >
+                      {ingredient}
+                    </span>
+                  ))}
+                </div>
+                {visibleIngredients.length > 6 && (
+                  <p className="mt-2 text-[10px] text-slate-400">
+                    +{visibleIngredients.length - 6} more in full details
+                  </p>
+                )}
+              </div>
+            )}
+
             {aiData.harmful_ingredients?.length > 0 && (
               <div className="mt-5">
                 <p className="text-[10px] font-bold uppercase tracking-[.14em] text-rose-700">
@@ -525,7 +558,8 @@ export default function ProductSummary({
               </div>
             </details>
 
-            <div className="mt-5">
+            {(alternativesLoading || alternatives.length > 0) && (
+            <div className="mt-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-700">
@@ -573,8 +607,9 @@ export default function ProductSummary({
                 </div>
               )}
             </div>
+            )}
 
-            <p className="mt-5 text-[10px] leading-4 text-slate-400">
+            <p className="mt-4 text-[9px] leading-4 text-slate-400">
               General food-label information only. Packaging data can be incomplete or misread.
             </p>
 
