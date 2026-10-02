@@ -213,7 +213,6 @@ const ImageUpload = () => {
                         <span className="absolute -bottom-px -left-px h-7 w-7 rounded-bl-[1rem] border-b-2 border-l-2 border-white" />
                         <span className="absolute -bottom-px -right-px h-7 w-7 rounded-br-[1rem] border-b-2 border-r-2 border-white" />
                       </div>
-
                       <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-medium text-white/90 backdrop-blur-sm">
                         Keep text sharp · avoid glare
                       </div>
@@ -361,7 +360,6 @@ const ImageUpload = () => {
       </div>
     </main>
   );
-
 };
 
 export default ImageUpload;
