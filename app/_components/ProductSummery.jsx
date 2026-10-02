@@ -262,17 +262,21 @@ export default function ProductSummary({
   if (!aiData) return null;
 
   const nutrition = aiData.nutrition || {};
-  const healthRating = Math.round(Math.min(10, Math.max(0, Number(aiData.rating) || 0)) * 10) / 10;
-  const scoreLabel =
-    healthRating >= 8
-      ? "Strong"
-      : healthRating >= 6.5
-      ? "Good"
-      : healthRating >= 5
-      ? "Mixed"
-      : healthRating >= 3.5
-      ? "Needs attention"
-      : "Occasional";
+  const ratingVerified = aiData.rating_verified !== false && aiData.rating != null;
+  const healthRating = ratingVerified
+    ? Math.round(Math.min(10, Math.max(0, Number(aiData.rating) || 0)) * 10) / 10
+    : null;
+  const scoreLabel = !ratingVerified
+    ? "Needs verification"
+    : healthRating >= 8
+    ? "Strong"
+    : healthRating >= 6.5
+    ? "Good"
+    : healthRating >= 5
+    ? "Mixed"
+    : healthRating >= 3.5
+    ? "Needs attention"
+    : "Occasional";
 
   const nutriScoreGrade = String(aiData.nutriscore_grade || "").toUpperCase();
 
@@ -360,9 +364,11 @@ export default function ProductSummary({
                 </p>
                 <div className="mt-1 flex items-end gap-1">
                   <span className="text-4xl font-semibold leading-none tracking-[-.05em]">
-                    {healthRating}
+                    {ratingVerified ? healthRating : "—"}
                   </span>
-                  <span className="mb-0.5 text-sm text-emerald-100">/10</span>
+                  {ratingVerified && (
+                    <span className="mb-0.5 text-sm text-emerald-100">/10</span>
+                  )}
                 </div>
               </div>
 
@@ -375,6 +381,18 @@ export default function ProductSummary({
                 )}
               </div>
             </div>
+
+            {aiData.nutrition_validation?.status === "needs_verification" && (
+              <div className="mt-3 rounded-xl bg-amber-50 px-3 py-3">
+                <p className="text-xs font-semibold text-amber-900">
+                  Nutrition needs verification
+                </p>
+                <p className="mt-1 text-[10px] leading-4 text-amber-700">
+                  {aiData.nutrition_validation?.message ||
+                    "The barcode nutrition data failed consistency checks. Scan the package label to verify it."}
+                </p>
+              </div>
+            )}
 
             {highlights.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
