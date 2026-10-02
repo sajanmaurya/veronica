@@ -1,3 +1,8 @@
+import {
+  enrichProductFromWeb,
+  needsWebEnrichment,
+} from "@/lib/productWebEnrichment";
+
 const MODEL_NAME = "qwen/qwen3.8-27b";
 
 const schema = {
@@ -42,35 +47,75 @@ const schema = {
   ],
 };
 
+function isUnknown(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  return !text || text === "unknown" || text === "n/a" || text === "null";
+}
+
+function finite(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 
 function buildBarcodeNutrition(product) {
   const source = product?.nutrients_per_100g || {};
 
-  const numberOrNull = (value) => {
-    const number = Number(value);
-    return Number.isFinite(number) ? number : null;
-  };
-
-  const sodiumGrams = numberOrNull(source.sodium);
-  const servingSize =
-    product?.serving_size && String(product.serving_size).toLowerCase() !== "unknown"
-      ? product.serving_size
-      : "per 100 g";
+  const sodiumGrams = finite(source.sodium);
+  const sodiumMgDirect = finite(source.sodium_mg);
 
   return {
-    serving_size: servingSize,
+    serving_size:
+      product?.serving_size && !isUnknown(product.serving_size)
+        ? product.serving_size
+        : "per 100 g",
     label_basis: "per_100g",
     servings_per_container: null,
-    calories: numberOrNull(source["energy-kcal"] ?? source.energy_kcal),
-    total_fat_g: numberOrNull(source.fat),
-    saturated_fat_g: numberOrNull(source["saturated-fat"] ?? source.saturated_fat),
-    trans_fat_g: numberOrNull(source["trans-fat"] ?? source.trans_fat),
-    carbohydrates_g: numberOrNull(source.carbohydrates),
-    fiber_g: numberOrNull(source.fiber),
-    total_sugar_g: numberOrNull(source.sugars ?? source.sugar),
-    added_sugar_g: null,
-    protein_g: numberOrNull(source.proteins ?? source.protein),
-    sodium_mg: sodiumGrams == null ? null : Math.round(sodiumGrams * 1000),
+    calories: finite(source["energy-kcal"] ?? source.energy_kcal),
+    total_fat_g: finite(source.fat),
+    saturated_fat_g: finite(
+      source["saturated-fat"] ?? source.saturated_fat
+    ),
+    trans_fat_g: finite(source["trans-fat"] ?? source.trans_fat),
+    carbohydrates_g: finite(source.carbohydrates),
+    fiber_g: finite(source.fiber),
+    total_sugar_g: finite(source.sugars ?? source.sugar),
+    added_sugar_g: finite(source.added_sugar_g),
+    protein_g: finite(source.proteins ?? source.protein),
+    sodium_mg:
+      sodiumMgDirect != null
+        ? Math.round(sodiumMgDirect)
+        : sodiumGrams == null
+        ? null
+        : Math.round(sodiumGrams * 1000),
+  };
+}
+
+function nutritionCount(nutrition) {
+  return [
+    nutrition.calories,
+    nutrition.total_fat_g,
+    nutrition.saturated_fat_g,
+    nutrition.carbohydrates_g,
+    nutrition.total_sugar_g,
+    nutrition.protein_g,
+    nutrition.sodium_mg,
+  ].filter((value) => value != null).length;
+}
+
+function nutritionToProductShape(nutrition) {
+  if (!nutrition) return {};
+
+  return {
+    "energy-kcal": nutrition.calories,
+    fat: nutrition.total_fat_g,
+    "saturated-fat": nutrition.saturated_fat_g,
+    "trans-fat": nutrition.trans_fat_g,
+    carbohydrates: nutrition.carbohydrates_g,
+    fiber: nutrition.fiber_g,
+    sugars: nutrition.total_sugar_g,
+    added_sugar_g: nutrition.added_sugar_g,
+    proteins: nutrition.protein_g,
+    sodium_mg: nutrition.sodium_mg,
   };
 }
 
@@ -80,24 +125,8 @@ function cleanRating(value) {
   return Math.min(10, Math.max(1, number));
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, message: "Method not allowed." });
-  }
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ success: false, message: "GROQ_API_KEY is not configured." });
-  }
-
-  try {
-    const { product, profile } = req.body || {};
-
-    if (!product) {
-      return res.status(400).json({ success: false, message: "Product data is required." });
-    }
-
-    const prompt = `
+async function analyzeWithGroq(apiKey, product, profile) {
+  const prompt = `
 You are Veronica, a food-product nutrition and ingredient analyst.
 
 Analyze the supplied product data. Use only information present in the product data; do not invent nutrition values or ingredients.
@@ -122,13 +151,15 @@ ${JSON.stringify(product)}
 
 USER PROFILE:
 ${JSON.stringify({
-  diseases: profile?.diseases || "",
-  allergies: profile?.allergies || "",
-  dietaryPreferences: profile?.dietaryPreferences || "",
-})}
+    diseases: profile?.diseases || "",
+    allergies: profile?.allergies || "",
+    dietaryPreferences: profile?.dietaryPreferences || "",
+  })}
 `;
 
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const groqResponse = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -140,7 +171,8 @@ ${JSON.stringify({
         messages: [
           {
             role: "system",
-            content: "Return only the requested JSON object. Never invent missing product facts.",
+            content:
+              "Return only the requested JSON object. Never invent missing product facts.",
           },
           { role: "user", content: prompt },
         ],
@@ -153,35 +185,72 @@ ${JSON.stringify({
           },
         },
       }),
+    }
+  );
+
+  const raw = await groqResponse.text();
+
+  if (!groqResponse.ok) {
+    let details = raw;
+
+    try {
+      details = JSON.parse(raw)?.error?.message || raw;
+    } catch {}
+
+    throw new Error(details || "Groq analysis failed.");
+  }
+
+  const payload = JSON.parse(raw);
+  const text = payload?.choices?.[0]?.message?.content;
+
+  if (!text) {
+    throw new Error("Groq returned an empty analysis.");
+  }
+
+  return JSON.parse(text);
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res
+      .status(405)
+      .json({ success: false, message: "Method not allowed." });
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({
+      success: false,
+      message: "GROQ_API_KEY is not configured.",
     });
+  }
 
-    const raw = await groqResponse.text();
+  try {
+    const { product, profile } = req.body || {};
 
-    if (!groqResponse.ok) {
-      let details = raw;
-      try {
-        details = JSON.parse(raw)?.error?.message || raw;
-      } catch {}
-      return res.status(groqResponse.status).json({
+    if (!product) {
+      return res.status(400).json({
         success: false,
-        message: details || "Groq analysis failed.",
+        message: "Product data is required.",
       });
     }
 
-    const payload = JSON.parse(raw);
-    const text = payload?.choices?.[0]?.message?.content;
+    const enrichmentNeed = needsWebEnrichment(product);
+    let webEnrichment = null;
 
-    if (!text) {
-      return res.status(502).json({ success: false, message: "Groq returned an empty analysis." });
+    if (enrichmentNeed.required) {
+      try {
+        webEnrichment = await enrichProductFromWeb(product, apiKey);
+      } catch (error) {
+        // Web recovery is a fallback only. A search outage must never break
+        // an otherwise usable barcode scan.
+        console.warn("Barcode web enrichment failed:", error?.message || error);
+      }
     }
 
-    const data = JSON.parse(text);
-
-    // Open Food Facts already provides the ingredient list for barcode
-    // products. Keep that source data in the final response instead of relying
-    // on the AI to reproduce it.
     const sourceIngredients = String(product.ingredients || "").trim();
-    const ingredients =
+    const offIngredients =
       sourceIngredients && sourceIngredients.toLowerCase() !== "unknown"
         ? sourceIngredients
             .split(/\s*,\s*/)
@@ -189,29 +258,147 @@ ${JSON.stringify({
             .filter(Boolean)
         : [];
 
+    const useWebIngredients =
+      offIngredients.length === 0 && webEnrichment?.safe_to_use_ingredients;
+
+    const ingredients = useWebIngredients
+      ? webEnrichment.ingredients
+      : offIngredients;
+
+    const offNutrition = buildBarcodeNutrition(product);
+    const useWebNutrition =
+      nutritionCount(offNutrition) < 3 &&
+      webEnrichment?.safe_to_use_nutrition &&
+      webEnrichment?.nutrition_per_100g;
+
+    const effectiveNutrition = useWebNutrition
+      ? {
+          serving_size: "per 100 g",
+          label_basis: "per_100g",
+          servings_per_container: null,
+          ...webEnrichment.nutrition_per_100g,
+        }
+      : offNutrition;
+
+    const effectiveQuantity =
+      !isUnknown(product.quantity)
+        ? product.quantity
+        : webEnrichment?.pack_size_verified
+        ? webEnrichment.pack_size
+        : "Unknown";
+
+    const effectiveProduct = {
+      ...product,
+      quantity: effectiveQuantity,
+      ingredients: ingredients.length ? ingredients.join(", ") : "Unknown",
+      nutrients_per_100g: useWebNutrition
+        ? nutritionToProductShape(webEnrichment.nutrition_per_100g)
+        : product.nutrients_per_100g,
+      data_provenance: {
+        ingredients: useWebIngredients
+          ? "web_verified"
+          : offIngredients.length
+          ? "open_food_facts"
+          : "unavailable",
+        nutrition: useWebNutrition
+          ? "web_verified"
+          : nutritionCount(offNutrition) >= 3
+          ? "open_food_facts"
+          : "unavailable",
+        quantity: !isUnknown(product.quantity)
+          ? "open_food_facts"
+          : webEnrichment?.pack_size_verified
+          ? "web_verified"
+          : "unavailable",
+      },
+    };
+
+    const data = await analyzeWithGroq(apiKey, effectiveProduct, profile);
+
+    const ingredientSource = useWebIngredients
+      ? "web_verified"
+      : offIngredients.length
+      ? "open_food_facts"
+      : "unavailable";
+
+    const nutritionSource = useWebNutrition
+      ? "web_verified"
+      : nutritionCount(offNutrition) >= 3
+      ? "open_food_facts"
+      : "unavailable";
+
+    const quantitySource = !isUnknown(product.quantity)
+      ? "open_food_facts"
+      : webEnrichment?.pack_size_verified
+      ? "web_verified"
+      : "unavailable";
+
     return res.status(200).json({
       success: true,
       data: {
         ...data,
-        product_category: product.categories || product.pnns_groups_2 || product.pnns_groups_1 || "Unknown",
+        product_category:
+          product.categories ||
+          product.pnns_groups_2 ||
+          product.pnns_groups_1 ||
+          "Unknown",
+        product_quantity:
+          effectiveQuantity === "Unknown" ? null : effectiveQuantity,
+        pack_size_verified:
+          quantitySource === "web_verified" ||
+          quantitySource === "open_food_facts",
         ingredients,
-        nutrition: buildBarcodeNutrition(product),
+        ingredients_source: ingredientSource,
+        nutrition: effectiveNutrition,
+        nutrition_source: nutritionSource,
         nutrition_validation: {
-          status: "verified",
-          message: "Nutrition values came from the barcode product database.",
+          status:
+            nutritionSource === "unavailable"
+              ? "needs_verification"
+              : "verified",
+          message:
+            nutritionSource === "web_verified"
+              ? "Nutrition was recovered from a high-confidence exact-product web match."
+              : nutritionSource === "open_food_facts"
+              ? "Nutrition came from the barcode product database."
+              : "Nutrition could not be verified from the barcode database or web fallback.",
           basis: "per_100g",
         },
         nutriscore_grade: product.nutriscore_grade || null,
         nutriscore_score:
-          product.nutriscore_score != null ? Number(product.nutriscore_score) : null,
+          product.nutriscore_score != null
+            ? Number(product.nutriscore_score)
+            : null,
         rating: cleanRating(data.rating),
+        data_sources: {
+          ingredients: ingredientSource,
+          nutrition: nutritionSource,
+          quantity: quantitySource,
+          web: webEnrichment
+            ? {
+                confidence: webEnrichment.confidence,
+                match_score: webEnrichment.match_score,
+                source_type: webEnrichment.source_type,
+                source_name: webEnrichment.source_name,
+                source_url: webEnrichment.source_url,
+                evidence_summary: webEnrichment.evidence_summary,
+              }
+            : null,
+        },
+        verification_required:
+          ingredientSource === "unavailable" ||
+          nutritionSource === "unavailable" ||
+          quantitySource === "unavailable",
       },
     });
   } catch (error) {
     console.error("Barcode Groq analysis failed:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Unable to analyze the scanned product right now.",
+      message:
+        error?.message ||
+        "Unable to analyze the scanned product right now.",
     });
   }
 }
