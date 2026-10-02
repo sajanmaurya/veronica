@@ -28,11 +28,11 @@ export default function Header({ clerkEnabled = true }) {
             onClick={() => setMenuOpen(false)}
           >
             <Image
-              src="/veronica-logo.svg"
+              src="/veronica-brand.png"
               alt="Veronica"
               width={40}
               height={40}
-              className="h-9 w-9 brand-mark-glow sm:h-10 sm:w-10"
+              className="h-9 w-9 rounded-lg object-cover sm:h-10 sm:w-10"
               priority
             />
             <span className="font-mono text-sm font-bold tracking-[.12em] text-slate-800">
