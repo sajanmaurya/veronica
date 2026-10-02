@@ -50,24 +50,106 @@ const ImageUpload = () => {
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
 
+      // Ask for permission first so camera labels become available. Phones
+      // often expose main, ultra-wide and telephoto rear lenses; simply using
+      // facingMode="environment" can choose a lens that cannot focus well on
+      // nearby nutrition labels.
+      const permissionStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      permissionStream.getTracks().forEach((track) => track.stop());
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((device) => device.kind === "videoinput");
+
+      const rearCameras = videoInputs.filter((device) => {
+        const label = (device.label || "").toLowerCase();
+        return (
+          !/front|user|selfie/i.test(label) &&
+          (/back|rear|environment|facing back/i.test(label) || videoInputs.length === 1)
+        );
+      });
+
+      const cameraPool = rearCameras.length ? rearCameras : videoInputs;
+
+      const preferredCamera =
+        cameraPool.find((device) =>
+          /camera\s*0|camera2\s*0|0,?\s*facing\s*back|main|primary|standard/i.test(
+            device.label || ""
+          )
+        ) ||
+        cameraPool.find(
+          (device) =>
+            !/ultra.?wide|0\.5x|telephoto|tele|zoom|macro/i.test(
+              device.label || ""
+            )
+        ) ||
+        cameraPool[0];
+
+      const videoConstraints = preferredCamera?.deviceId
+        ? {
+            deviceId: { exact: preferredCamera.deviceId },
+            width: { ideal: 3840 },
+            height: { ideal: 2160 },
+            frameRate: { ideal: 30, max: 30 },
+          }
+        : {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 3840 },
+            height: { ideal: 2160 },
+            frameRate: { ideal: 30, max: 30 },
+          };
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+        video: videoConstraints,
         audio: false,
       });
 
       streamRef.current = stream;
-      setCameraActive(true);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error("Camera preview element is unavailable.");
       }
+
+      video.srcObject = stream;
+      video.setAttribute("playsinline", "true");
+      video.muted = true;
+      await video.play();
+
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track?.getCapabilities?.();
+
+      // Continuous autofocus makes a big difference for close-up text.
+      if (
+        track?.applyConstraints &&
+        Array.isArray(capabilities?.focusMode) &&
+        capabilities.focusMode.includes("continuous")
+      ) {
+        try {
+          await track.applyConstraints({
+            advanced: [{ focusMode: "continuous" }],
+          });
+        } catch (focusError) {
+          console.warn("Continuous autofocus is not available:", focusError);
+        }
+      }
+
+      console.log("Veronica label camera:", {
+        selected: preferredCamera?.label || "environment camera",
+        settings: track?.getSettings?.(),
+        focusModes: capabilities?.focusMode,
+      });
+
+      // Give autofocus a brief moment before enabling capture.
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+      setCameraActive(true);
     } catch (error) {
       console.error("Camera access error:", error);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       setCameraActive(false);
 
       const errorCode = error?.name || "UnknownError";
@@ -101,14 +183,50 @@ const ImageUpload = () => {
     };
   }, []);
 
-  const capturePhoto = () => {
-    const video = videoRef.current;
+  const saveCapturedBlob = (blob) => {
+    if (!blob) {
+      setCameraError("Could not create the captured image.");
+      return;
+    }
 
-    if (!video || !video.videoWidth || !video.videoHeight) {
+    const file = new File(
+      [blob],
+      `veronica-camera-${Date.now()}.${blob.type === "image/png" ? "png" : "jpg"}`,
+      { type: blob.type || "image/jpeg" }
+    );
+
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+    setAiData(null);
+    stopCamera();
+  };
+
+  const capturePhoto = async () => {
+    const video = videoRef.current;
+    const track = streamRef.current?.getVideoTracks?.()[0];
+
+    if (!video || !video.videoWidth || !video.videoHeight || !track) {
       setCameraError("Camera is still starting. Please try again in a moment.");
       return;
     }
 
+    // ImageCapture asks the camera for a real still photo, which is usually
+    // much sharper and higher resolution than copying the live video frame.
+    if (typeof window !== "undefined" && "ImageCapture" in window) {
+      try {
+        const imageCapture = new window.ImageCapture(track);
+        const blob = await imageCapture.takePhoto();
+
+        if (blob?.size) {
+          saveCapturedBlob(blob);
+          return;
+        }
+      } catch (error) {
+        console.warn("High-resolution still capture unavailable:", error);
+      }
+    }
+
+    // Safe fallback for browsers without ImageCapture.
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -123,25 +241,9 @@ const ImageUpload = () => {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          setCameraError("Could not create the captured image.");
-          return;
-        }
-
-        const file = new File(
-          [blob],
-          `veronica-camera-${Date.now()}.jpg`,
-          { type: "image/jpeg" }
-        );
-
-        setImage(file);
-        setPreview(URL.createObjectURL(file));
-        setAiData(null);
-        stopCamera();
-      },
+      (blob) => saveCapturedBlob(blob),
       "image/jpeg",
-      0.92
+      0.96
     );
   };
 
@@ -203,7 +305,7 @@ const ImageUpload = () => {
             <img
               src={preview}
               alt="Uploaded"
-              className="h-64 w-full rounded-2xl object-cover shadow-lg mb-1"
+              className="max-h-80 w-full rounded-2xl bg-black/5 object-contain shadow-lg mb-1"
             />
           )}
 
@@ -259,6 +361,12 @@ const ImageUpload = () => {
                 {cameraError && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6 text-center text-sm leading-6 text-white">
                     {cameraError}
+                  </div>
+                )}
+
+                {cameraActive && (
+                  <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-[10px] font-semibold text-white/90 backdrop-blur">
+                    Keep label flat · move back slightly if text is soft
                   </div>
                 )}
               </div>
