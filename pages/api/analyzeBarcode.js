@@ -2,6 +2,7 @@ import {
   enrichProductFromWeb,
   needsWebEnrichment,
 } from "@/lib/productWebEnrichment";
+import { validateBarcodeNutrition } from "@/lib/nutritionValidation";
 
 const MODEL_NAME = "qwen/qwen3.8-27b";
 
@@ -55,39 +56,6 @@ function isUnknown(value) {
 function finite(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
-}
-
-function buildBarcodeNutrition(product) {
-  const source = product?.nutrients_per_100g || {};
-
-  const sodiumGrams = finite(source.sodium);
-  const sodiumMgDirect = finite(source.sodium_mg);
-
-  return {
-    serving_size:
-      product?.serving_size && !isUnknown(product.serving_size)
-        ? product.serving_size
-        : "per 100 g",
-    label_basis: "per_100g",
-    servings_per_container: null,
-    calories: finite(source["energy-kcal"] ?? source.energy_kcal),
-    total_fat_g: finite(source.fat),
-    saturated_fat_g: finite(
-      source["saturated-fat"] ?? source.saturated_fat
-    ),
-    trans_fat_g: finite(source["trans-fat"] ?? source.trans_fat),
-    carbohydrates_g: finite(source.carbohydrates),
-    fiber_g: finite(source.fiber),
-    total_sugar_g: finite(source.sugars ?? source.sugar),
-    added_sugar_g: finite(source.added_sugar_g),
-    protein_g: finite(source.proteins ?? source.protein),
-    sodium_mg:
-      sodiumMgDirect != null
-        ? Math.round(sodiumMgDirect)
-        : sodiumGrams == null
-        ? null
-        : Math.round(sodiumGrams * 1000),
-  };
 }
 
 function nutritionCount(nutrition) {
@@ -237,9 +205,10 @@ export default async function handler(req, res) {
     }
 
     const enrichmentNeed = needsWebEnrichment(product);
+    const offValidation = validateBarcodeNutrition(product);
     let webEnrichment = null;
 
-    if (enrichmentNeed.required) {
+    if (enrichmentNeed.required || offValidation.requires_fallback) {
       try {
         webEnrichment = await enrichProductFromWeb(product, apiKey);
       } catch (error) {
@@ -265,9 +234,10 @@ export default async function handler(req, res) {
       ? webEnrichment.ingredients
       : offIngredients;
 
-    const offNutrition = buildBarcodeNutrition(product);
+    const offNutrition = offValidation.nutrition;
     const useWebNutrition =
-      nutritionCount(offNutrition) < 3 &&
+      (offValidation.status === "needs_verification" ||
+        nutritionCount(offNutrition) < 3) &&
       webEnrichment?.safe_to_use_nutrition &&
       webEnrichment?.nutrition_per_100g;
 
@@ -323,7 +293,7 @@ export default async function handler(req, res) {
 
     const nutritionSource = useWebNutrition
       ? "web_verified"
-      : nutritionCount(offNutrition) >= 3
+      : offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
       ? "open_food_facts"
       : "unavailable";
 
@@ -358,11 +328,17 @@ export default async function handler(req, res) {
               : "verified",
           message:
             nutritionSource === "web_verified"
-              ? "Nutrition was recovered from a high-confidence exact-product web match."
+              ? "Nutrition was recovered from a high-confidence exact-product web match after the barcode data failed validation."
+              : nutritionSource === "open_food_facts" && offValidation.corrected_fields.length
+              ? "Open Food Facts data passed sanity checks after safe corrections derived from its own fields."
               : nutritionSource === "open_food_facts"
-              ? "Nutrition came from the barcode product database."
+              ? "Open Food Facts nutrition passed consistency checks."
+              : offValidation.issues.length
+              ? `Open Food Facts data failed validation: ${offValidation.issues.join("; ")}. Scan the package label to verify.`
               : "Nutrition could not be verified from the barcode database or web fallback.",
           basis: "per_100g",
+          issues: offValidation.issues,
+          corrected_fields: offValidation.corrected_fields,
         },
         nutriscore_grade: product.nutriscore_grade || null,
         nutriscore_score:
@@ -388,7 +364,8 @@ export default async function handler(req, res) {
         verification_required:
           ingredientSource === "unavailable" ||
           nutritionSource === "unavailable" ||
-          quantitySource === "unavailable",
+          quantitySource === "unavailable" ||
+          offValidation.status === "needs_verification",
       },
     });
   } catch (error) {
