@@ -127,6 +127,21 @@ function sourceTone(value) {
   return "bg-amber-50 text-amber-700";
 }
 
+function normalizeIngredientName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function ingredientPresence(index, total) {
+  if (total <= 3) return { label: "Higher presence", tone: "rose" };
+  const position = (index + 1) / total;
+  if (position <= 0.3) return { label: "Higher presence", tone: "rose" };
+  if (position <= 0.65) return { label: "Medium presence", tone: "amber" };
+  return { label: "Lower presence", tone: "slate" };
+}
+
 function buildHighlights(aiData) {
   const nutrition = aiData?.nutrition || {};
   const items = [];
@@ -254,6 +269,14 @@ export default function ProductSummary({
 
   const visibleIngredients = useMemo(
     () => (Array.isArray(aiData?.ingredients) ? aiData.ingredients.filter(Boolean) : []),
+    [aiData]
+  );
+
+  const majorIngredients = useMemo(
+    () =>
+      Array.isArray(aiData?.major_ingredients)
+        ? aiData.major_ingredients.filter((item) => item?.name)
+        : [],
     [aiData]
   );
 
@@ -585,13 +608,76 @@ export default function ProductSummary({
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-slate-800">
-                    Ingredients
-                  </p>
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">
+                        Ingredients
+                      </p>
+                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                        Exact percentages are shown only when printed on the package. Otherwise presence is estimated from ingredient order.
+                      </p>
+                    </div>
+                  </div>
+
                   {visibleIngredients.length ? (
-                    <p className="mt-2 text-xs leading-5 text-slate-600">
-                      {visibleIngredients.join(", ")}
-                    </p>
+                    <div className="mt-3 space-y-2">
+                      {visibleIngredients.map((ingredient, index) => {
+                        const normalized = normalizeIngredientName(ingredient);
+                        const metadata = majorIngredients.find((item) => {
+                          const itemName = normalizeIngredientName(item?.name);
+                          return (
+                            itemName &&
+                            (normalized.includes(itemName) ||
+                              itemName.includes(normalized))
+                          );
+                        });
+
+                        const exactPercentage = finite(metadata?.percentage);
+                        const exactAmount = finite(metadata?.amount_g_per_serving);
+                        const presence = ingredientPresence(
+                          index,
+                          visibleIngredients.length
+                        );
+
+                        const badgeClass =
+                          exactPercentage != null
+                            ? "bg-emerald-50 text-emerald-700"
+                            : presence.tone === "rose"
+                            ? "bg-rose-50 text-rose-700"
+                            : presence.tone === "amber"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-600";
+
+                        const label =
+                          exactPercentage != null
+                            ? `${exactPercentage}%`
+                            : exactAmount != null
+                            ? `${exactAmount} g / serving`
+                            : presence.label;
+
+                        return (
+                          <div
+                            key={`${ingredient}-detail-${index}`}
+                            className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5"
+                          >
+                            <div className="min-w-0 flex items-start gap-2">
+                              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[9px] font-bold text-slate-500">
+                                {index + 1}
+                              </span>
+                              <p className="text-[11px] leading-5 text-slate-700">
+                                {ingredient}
+                              </p>
+                            </div>
+
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${badgeClass}`}
+                            >
+                              {label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <p className="mt-2 text-xs text-slate-400">
                       No readable ingredient list detected.
