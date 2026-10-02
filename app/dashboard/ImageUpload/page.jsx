@@ -156,7 +156,164 @@ const ImageUpload = () => {
   useEffect(() => {
     openCamera();
 
-    return (
+    return () => {
+      stopCamera();
+    };
+    // Open once when the Upload Food Label page loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (preview?.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
+  const setSelectedImage = (file) => {
+    if (!file) return;
+
+    if (preview?.startsWith("blob:")) {
+      URL.revokeObjectURL(preview);
+    }
+
+    const nextPreview = URL.createObjectURL(file);
+
+    setImage(file);
+    setPreview(nextPreview);
+    setAiData(null);
+    stopCamera();
+  };
+
+  const handleGalleryUpload = (event) => {
+    const file = event.target.files?.[0];
+    setSelectedImage(file);
+    event.target.value = "";
+  };
+
+  const saveCapturedBlob = (blob) => {
+    if (!blob) {
+      throw new Error("Could not create the captured image.");
+    }
+
+    const extension = blob.type === "image/png" ? "png" : "jpg";
+    const file = new File(
+      [blob],
+      `veronica-label-${Date.now()}.${extension}`,
+      { type: blob.type || "image/jpeg" }
+    );
+
+    setSelectedImage(file);
+  };
+
+  const capturePhoto = async () => {
+    const video = videoRef.current;
+    const track = streamRef.current?.getVideoTracks?.()[0];
+
+    if (!video || !track || !video.videoWidth || !video.videoHeight) {
+      toast.error("Camera is still starting. Try again in a moment.");
+      return;
+    }
+
+    setCapturing(true);
+
+    try {
+      // Prefer a real still capture when the browser supports ImageCapture.
+      // This is normally sharper than copying a frame from the video preview.
+      if (typeof window !== "undefined" && "ImageCapture" in window) {
+        try {
+          const imageCapture = new window.ImageCapture(track);
+          const blob = await imageCapture.takePhoto();
+
+          if (blob?.size) {
+            saveCapturedBlob(blob);
+            return;
+          }
+        } catch (error) {
+          console.warn("High-resolution still capture unavailable:", error);
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error("Could not capture the camera frame.");
+      }
+
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.96)
+      );
+
+      saveCapturedBlob(blob);
+    } catch (error) {
+      console.error("Photo capture failed:", error);
+      toast.error(error?.message || "Could not capture the photo.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!image) {
+      toast.error("Capture or upload a photo first.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+      formData.append(
+        "profile",
+        JSON.stringify({
+          diseases: profile?.diseases || null,
+          allergies: profile?.allergies || null,
+          dietaryPreferences: profile?.dietaryPreferences || null,
+        })
+      );
+
+      const response = await fetch("/api/analyzeImage", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Unable to analyze the image.");
+      }
+
+      setAiData(data.data);
+    } catch (error) {
+      console.error("Error analyzing image:", error);
+      toast.error(
+        error?.message || "Error analyzing image. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const retakePhoto = async () => {
+    if (preview?.startsWith("blob:")) {
+      URL.revokeObjectURL(preview);
+    }
+
+    setImage(null);
+    setPreview(null);
+    setAiData(null);
+    await openCamera();
+  };
+
+  return (
     <main className="min-h-[calc(100vh-72px)] bg-[#f4f5f2]/95 px-3 py-4 sm:px-6 sm:py-8">
       <div className="mx-auto w-full max-w-2xl">
         {!aiData && (
