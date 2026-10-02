@@ -282,6 +282,7 @@ const BarcodeScanning = () => {
   const [productName, setProductName] = useState("");
   const [barcodeNotFound, setBarcodeNotFound] = useState(false);
   const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   // =====================================================
   // BARCODE SCANNER
@@ -482,6 +483,118 @@ const BarcodeScanning = () => {
     }
   };
 
+
+  const handleVerifyPackage = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setVerifyLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append(
+        "profile",
+        JSON.stringify({
+          diseases: profile?.diseases || "",
+          allergies: profile?.allergies || "",
+          dietaryPreferences: profile?.dietaryPreferences || "",
+        })
+      );
+
+      const response = await fetch("/api/analyzeImage", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.error || "Package verification failed.");
+      }
+
+      const scan = result.data;
+      const scannedIngredients =
+        Array.isArray(scan.ingredients) && scan.ingredients.length > 0;
+      const scannedNutrition =
+        scan.nutrition &&
+        Object.entries(scan.nutrition).some(
+          ([key, value]) =>
+            !["serving_size", "label_basis", "servings_per_container"].includes(key) &&
+            value != null
+        );
+
+      setAiData((current) => {
+        if (!current) return scan;
+
+        const nextIngredients = scannedIngredients
+          ? scan.ingredients
+          : current.ingredients || [];
+
+        const nextNutrition = scannedNutrition
+          ? scan.nutrition
+          : current.nutrition || {};
+
+        const nextQuantity =
+          scan.package_quantity || current.product_quantity || null;
+
+        const ingredientsSource = scannedIngredients
+          ? "package_scan"
+          : current.ingredients_source || "unavailable";
+
+        const nutritionSource = scannedNutrition
+          ? "package_scan"
+          : current.nutrition_source || "unavailable";
+
+        const quantitySource = scan.package_quantity
+          ? "package_scan"
+          : current.data_sources?.quantity || "unavailable";
+
+        return {
+          ...current,
+          ...(scannedIngredients || scannedNutrition
+            ? {
+                rating: scan.rating,
+                summary: scan.summary,
+                harmful_ingredients: scan.harmful_ingredients,
+                ingredient_explanations: scan.ingredient_explanations,
+                user_specific_summary: scan.user_specific_summary,
+              }
+            : {}),
+          ingredients: nextIngredients,
+          ingredients_source: ingredientsSource,
+          nutrition: nextNutrition,
+          nutrition_source: nutritionSource,
+          nutrition_validation: scannedNutrition
+            ? scan.nutrition_validation
+            : current.nutrition_validation,
+          product_quantity: nextQuantity,
+          pack_size_verified:
+            Boolean(scan.package_quantity) || current.pack_size_verified,
+          data_sources: {
+            ...(current.data_sources || {}),
+            ingredients: ingredientsSource,
+            nutrition: nutritionSource,
+            quantity: quantitySource,
+          },
+          verification_required:
+            ingredientsSource === "unavailable" ||
+            nutritionSource === "unavailable" ||
+            quantitySource === "unavailable",
+        };
+      });
+
+      setImageNutritionImage(URL.createObjectURL(file));
+      toast.success("Package data verified from your photo");
+    } catch (error) {
+      console.error("Package verification failed:", error);
+      toast.error(error?.message || "Could not verify the package.");
+    } finally {
+      setVerifyLoading(false);
+      event.target.value = "";
+    }
+  };
+
   const resetScan = () => {
     scanLocked.current = false;
     stopScanner();
@@ -661,10 +774,35 @@ const BarcodeScanning = () => {
             aiData={aiData}
             productName={productName}
             imageFrontUrl={imageFrontUrl}
-            imageNutritionImage={
-              imageNutritionImage
-            }
+            imageNutritionImage={imageNutritionImage}
           />
+
+          {aiData.verification_required && (
+            <div className="mx-1 mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 sm:mx-auto sm:max-w-3xl">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-amber-900">
+                    Some product data is still unverified
+                  </p>
+                  <p className="mt-1 text-[10px] leading-4 text-amber-700">
+                    Photograph the ingredients, nutrition panel, or pack size from this exact package.
+                  </p>
+                </div>
+
+                <label className="shrink-0 cursor-pointer rounded-xl bg-amber-900 px-3 py-2 text-[10px] font-bold text-white">
+                  {verifyLoading ? "Checking…" : "Scan label"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleVerifyPackage}
+                    disabled={verifyLoading}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* SCAN ANOTHER */}
 
