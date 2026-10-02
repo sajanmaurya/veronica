@@ -113,6 +113,20 @@ function cleanCategory(value) {
     .join(" · ");
 }
 
+function sourceLabel(value) {
+  if (value === "package_scan") return "Package scan";
+  if (value === "open_food_facts") return "Open Food Facts";
+  if (value === "web_verified") return "Verified web";
+  return "Unverified";
+}
+
+function sourceTone(value) {
+  if (value === "package_scan") return "bg-emerald-100 text-emerald-700";
+  if (value === "open_food_facts") return "bg-sky-50 text-sky-700";
+  if (value === "web_verified") return "bg-violet-50 text-violet-700";
+  return "bg-amber-50 text-amber-700";
+}
+
 function buildHighlights(aiData) {
   const nutrition = aiData?.nutrition || {};
   const items = [];
@@ -323,6 +337,19 @@ export default function ProductSummary({
                     {cleanCategory(aiData.product_category)}
                   </p>
                 )}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {aiData.product_quantity && (
+                    <span className="rounded-full bg-white/80 px-2 py-1 text-[9px] font-semibold text-slate-600">
+                      Pack {aiData.product_quantity}
+                    </span>
+                  )}
+                  <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.nutrition_source)}`}>
+                    Nutrition: {sourceLabel(aiData.nutrition_source)}
+                  </span>
+                  <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.ingredients_source)}`}>
+                    Ingredients: {sourceLabel(aiData.ingredients_source)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -451,7 +478,7 @@ export default function ProductSummary({
               </div>
             </div>
 
-            {visibleIngredients.length > 0 && (
+            {visibleIngredients.length > 0 ? (
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-700">
@@ -476,6 +503,15 @@ export default function ProductSummary({
                     +{visibleIngredients.length - 6} more in full details
                   </p>
                 )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl bg-amber-50 px-3 py-3">
+                <p className="text-xs font-semibold text-amber-800">
+                  Ingredient list not verified
+                </p>
+                <p className="mt-1 text-[10px] leading-4 text-amber-700">
+                  Veronica could not find a reliable ingredient list for this exact product. Scan the package label to verify it.
+                </p>
               </div>
             )}
 
