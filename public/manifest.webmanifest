@@ -4,14 +4,14 @@
   "description": "Scan food products and understand nutrition, ingredients, and personal warnings.",
   "start_url": "/home",
   "display": "standalone",
-  "background_color": "#f6fbf8",
-  "theme_color": "#0b5f4a",
+  "background_color": "#070708",
+  "theme_color": "#070708",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/veronica-brand.png",
+      "sizes": "256x256",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
