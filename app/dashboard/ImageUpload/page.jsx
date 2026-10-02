@@ -314,25 +314,22 @@ const ImageUpload = () => {
   };
 
   return (
-    <main className="min-h-[calc(100vh-72px)] bg-[#f4f5f2]/95 px-3 py-4 sm:px-6 sm:py-8">
-      <div className="mx-auto w-full max-w-2xl">
+    <main className="app-canvas">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
         {!aiData && (
-          <section className="overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,.05)]">
-            <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-emerald-700">
-                Analyze
-              </p>
-              <h1 className="mt-1 text-xl font-semibold tracking-[-.03em] text-slate-950 sm:text-2xl">
-                Scan a food label
-              </h1>
-              <p className="mt-1.5 max-w-xl text-[12px] leading-5 text-slate-500 sm:text-sm">
-                Keep the ingredients or nutrition panel inside the frame.
-              </p>
-            </div>
-
+          <div className="glass-panel flex w-full max-w-xl flex-col items-center gap-3 p-3 sm:gap-4 sm:p-6">
             {!image ? (
-              <div className="p-3 sm:p-4">
-                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[1rem] bg-slate-950 sm:aspect-[4/3]">
+              <>
+                <div className="w-full text-center">
+                  <p className="text-lg font-semibold tracking-[-.03em] text-slate-950 sm:text-xl">
+                    Scan the food label
+                  </p>
+                  <p className="mt-1.5 text-[11px] leading-5 text-slate-500 sm:text-xs">
+                    Keep the ingredient or nutrition panel inside the frame.
+                  </p>
+                </div>
+
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-slate-950 sm:aspect-[4/3]">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -342,35 +339,30 @@ const ImageUpload = () => {
                   />
 
                   {cameraStarting && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-xs font-medium text-white/70">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-xs font-semibold text-white/70">
                       Starting camera…
                     </div>
                   )}
 
                   {cameraError && !cameraStarting && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950 p-6 text-center">
-                      <p className="max-w-xs text-xs leading-5 text-white/75">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/95 p-6 text-center">
+                      <p className="text-xs leading-5 text-white/80">
                         {cameraError}
                       </p>
                       <button
                         type="button"
                         onClick={openCamera}
-                        className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-slate-950 transition active:scale-[.98]"
+                        className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-900"
                       >
-                        Try again
+                        Try camera again
                       </button>
                     </div>
                   )}
 
                   {cameraActive && !cameraError && (
                     <>
-                      <div className="pointer-events-none absolute inset-[10%] rounded-[1rem] border border-white/75">
-                        <span className="absolute -left-px -top-px h-7 w-7 rounded-tl-[1rem] border-l-2 border-t-2 border-white" />
-                        <span className="absolute -right-px -top-px h-7 w-7 rounded-tr-[1rem] border-r-2 border-t-2 border-white" />
-                        <span className="absolute -bottom-px -left-px h-7 w-7 rounded-bl-[1rem] border-b-2 border-l-2 border-white" />
-                        <span className="absolute -bottom-px -right-px h-7 w-7 rounded-br-[1rem] border-b-2 border-r-2 border-white" />
-                      </div>
-                      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-medium text-white/90 backdrop-blur-sm">
+                      <div className="pointer-events-none absolute inset-[12%] rounded-2xl border border-white/70" />
+                      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-semibold text-white/90 backdrop-blur">
                         Keep text sharp · avoid glare
                       </div>
                     </>
@@ -381,37 +373,17 @@ const ImageUpload = () => {
                   type="button"
                   onClick={capturePhoto}
                   disabled={!cameraActive || capturing}
-                  className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 active:scale-[.99] disabled:pointer-events-none disabled:opacity-40"
+                  className="glass-button-primary flex w-full items-center justify-center gap-2 py-4 text-base disabled:pointer-events-none disabled:opacity-50"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
-                    <rect x="3" y="6" width="18" height="13" rx="3" />
-                    <path d="M8 6l1.5-2h5L16 6" />
-                    <circle cx="12" cy="12.5" r="3.25" />
-                  </svg>
-                  <span>{capturing ? "Capturing…" : "Capture label"}</span>
+                  <span aria-hidden="true">●</span>
+                  <span>{capturing ? "Capturing…" : "Capture"}</span>
                 </button>
 
-                <label className="mt-2 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[.99]">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="h-4 w-4 text-slate-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
-                    <path d="M12 16V4" />
-                    <path d="M7.5 8.5L12 4l4.5 4.5" />
-                    <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
-                  </svg>
-                  <span>Upload from gallery</span>
+                <label className="glass-surface flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-5 py-3 text-center transition hover:bg-white/80">
+                  <span aria-hidden="true">🖼️</span>
+                  <span className="text-xs font-bold text-slate-800 sm:text-sm">
+                    Upload from gallery
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
@@ -419,70 +391,26 @@ const ImageUpload = () => {
                     onChange={handleGalleryUpload}
                   />
                 </label>
-
-                <div className="mt-3 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M12 10v6" />
-                    <path d="M12 7.5h.01" />
-                  </svg>
-                  <p className="text-[10px] leading-4 text-slate-500 sm:text-[11px]">
-                    Best results: keep the packet flat, fill most of the frame,
-                    focus on the text, and avoid reflections.
-                  </p>
-                </div>
-              </div>
+              </>
             ) : (
-              <div className="p-3 sm:p-4">
-                <div className="overflow-hidden rounded-[1rem] border border-slate-200 bg-slate-50">
-                  <img
-                    src={preview}
-                    alt="Captured food label"
-                    className="max-h-[460px] w-full object-contain"
-                  />
-                </div>
+              <>
+                <img
+                  src={preview}
+                  alt="Captured food label"
+                  className="max-h-[430px] w-full rounded-2xl bg-black/5 object-contain shadow-sm"
+                />
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="grid w-full grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={retakePhoto}
-                    className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[.99]"
+                    className="rounded-xl bg-white/70 px-4 py-3 text-center text-xs font-bold text-slate-800"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    >
-                      <path d="M4 7v5h5" />
-                      <path d="M5.5 11a7 7 0 1 1 1.2 6.3" />
-                    </svg>
-                    Retake
+                    📷 Retake
                   </button>
 
-                  <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[.99]">
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    >
-                      <path d="M12 16V4" />
-                      <path d="M7.5 8.5L12 4l4.5 4.5" />
-                      <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
-                    </svg>
-                    Gallery
+                  <label className="cursor-pointer rounded-xl bg-white/70 px-4 py-3 text-center text-xs font-bold text-slate-800">
+                    🖼️ Gallery
                     <input
                       type="file"
                       accept="image/*"
@@ -495,18 +423,18 @@ const ImageUpload = () => {
                 <button
                   type="button"
                   onClick={handleSubmit}
+                  className="glass-button-primary w-full py-4 text-base disabled:pointer-events-none disabled:opacity-50"
                   disabled={loading}
-                  className="mt-2 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 active:scale-[.99] disabled:pointer-events-none disabled:opacity-50"
                 >
-                  {loading ? "Analyzing…" : "Analyze label"}
+                  {loading ? "Analyzing image..." : "Analyze label"}
                 </button>
-              </div>
+              </>
             )}
-          </section>
+          </div>
         )}
 
         {aiData && (
-          <div className="w-full">
+          <div className="mt-4 w-full max-w-4xl">
             <ProductSummery
               aiData={aiData}
               productName={aiData.product_name || "Unknown product"}
