@@ -263,7 +263,7 @@ export default async function handler(req, res) {
       ingredients: ingredients.length ? ingredients.join(", ") : "Unknown",
       nutrients_per_100g: useWebNutrition
         ? nutritionToProductShape(webEnrichment.nutrition_per_100g)
-        : product.nutrients_per_100g,
+        : nutritionToProductShape(offNutrition),
       data_provenance: {
         ingredients: useWebIngredients
           ? "web_verified"
@@ -272,7 +272,7 @@ export default async function handler(req, res) {
           : "unavailable",
         nutrition: useWebNutrition
           ? "web_verified"
-          : nutritionCount(offNutrition) >= 3
+          : offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
           ? "open_food_facts"
           : "unavailable",
         quantity: !isUnknown(product.quantity)
@@ -345,7 +345,11 @@ export default async function handler(req, res) {
           product.nutriscore_score != null
             ? Number(product.nutriscore_score)
             : null,
-        rating: cleanRating(data.rating),
+        rating:
+          nutritionSource === "unavailable"
+            ? null
+            : cleanRating(data.rating),
+        rating_verified: nutritionSource !== "unavailable",
         data_sources: {
           ingredients: ingredientSource,
           nutrition: nutritionSource,
