@@ -7,9 +7,9 @@ import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
 
-const BARCODE_CACHE_DB = "veronica-barcode-cache";
+const BARCODE_CACHE_DB = "veronica-barcode-cache-v2";
 const BARCODE_CACHE_STORE = "products";
-const BARCODE_CACHE_TTL = 1000 * 60 * 60 * 24 * 30;
+const BARCODE_CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
 
 function openBarcodeCache() {
   return new Promise((resolve, reject) => {
