@@ -1,5 +1,5 @@
-const CACHE_NAME = "veronica-shell-v1";
-const STATIC_ASSETS = ["/manifest.webmanifest", "/icon.svg"];
+const CACHE_NAME = "veronica-shell-v2";
+const STATIC_ASSETS = ["/manifest.webmanifest", "/veronica-brand.png", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
