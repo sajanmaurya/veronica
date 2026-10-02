@@ -172,6 +172,7 @@ const foodAnalysisSchema = {
     is_food_product: { type: "boolean" },
     product_name: { type: "string" },
     product_category: { type: "string" },
+    package_quantity: { type: ["string", "null"] },
     rating: { type: "number" },
     nutrition: {
       type: "object",
@@ -263,6 +264,7 @@ const foodAnalysisSchema = {
     "is_food_product",
     "product_name",
     "product_category",
+    "package_quantity",
     "rating",
     "nutrition",
     "ingredients",
@@ -367,6 +369,7 @@ Analyze the food product shown in the uploaded image.
 
 Read only information that is actually visible in the image. Carefully inspect:
 - Product name
+- Net package quantity / pack size (for example 200 g, 1 kg, 500 ml) when visibly printed
 - The complete visible ingredient list, in the order shown
 - Major ingredients worth highlighting
 - Nutrition Facts
@@ -446,6 +449,8 @@ IMPORTANT DATA RULES:
 - Never invent ingredient quantities.
 - Product name must be "Unknown product" when it cannot be read with confidence.
 - Product category must be a concise broad category supported by the visible package; use "Unknown" when it cannot be determined.
+- "package_quantity" must contain only the exact net quantity visibly printed on the package, including its unit. Return null when it cannot be read confidently.
+- Never infer pack size from product name, serving size, or prior knowledge.
 - Keep user_specific_summary as an empty string when the profile does not contain relevant information.
 
 Return data matching the supplied JSON schema.
@@ -546,6 +551,27 @@ Return data matching the supplied JSON schema.
     const normalized = normalizeNutrition(data.nutrition);
     data.nutrition = normalized.nutrition;
     data.nutrition_validation = normalized.validation;
+    data.ingredients_source =
+      Array.isArray(data.ingredients) && data.ingredients.length
+        ? "package_scan"
+        : "unavailable";
+    data.nutrition_source =
+      Object.values(data.nutrition || {}).some(
+        (value) => value != null && value !== "unknown"
+      )
+        ? "package_scan"
+        : "unavailable";
+    data.data_sources = {
+      ingredients: data.ingredients_source,
+      nutrition: data.nutrition_source,
+      quantity: data.package_quantity ? "package_scan" : "unavailable",
+      web: null,
+    };
+    data.pack_size_verified = Boolean(data.package_quantity);
+    data.verification_required =
+      data.ingredients_source === "unavailable" ||
+      data.nutrition_source === "unavailable" ||
+      !data.package_quantity;
 
     return res.status(200).json({
       success: true,
