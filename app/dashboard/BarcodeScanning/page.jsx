@@ -499,7 +499,7 @@ const BarcodeScanning = () => {
   // =====================================================
 
   return (
-    <div className="flex flex-col items-center w-full mt-12 px-4">
+    <div className="flex w-full flex-col items-center px-2 pt-4 sm:px-4 sm:pt-10">
 
       {/* =================================================
           SCANNER SECTION
@@ -655,7 +655,7 @@ const BarcodeScanning = () => {
       ================================================= */}
 
       {aiData && (
-        <div className="w-full max-w-4xl mt-10">
+        <div className="mt-2 w-full max-w-none sm:mt-6 sm:max-w-4xl">
 
           <ProductSummery
             aiData={aiData}
@@ -668,11 +668,11 @@ const BarcodeScanning = () => {
 
           {/* SCAN ANOTHER */}
 
-          <div className="flex justify-center mt-8">
+          <div className="mt-4 flex justify-center px-1 pb-6 sm:mt-6">
 
             <button
               onClick={resetScan}
-              className="bg-gray-700 text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-all"
+              className="w-full rounded-2xl bg-slate-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-900 sm:w-auto"
             >
               Scan Another Product
             </button>
