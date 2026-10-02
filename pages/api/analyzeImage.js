@@ -567,6 +567,7 @@ Return data matching the supplied JSON schema.
       quantity: data.package_quantity ? "package_scan" : "unavailable",
       web: null,
     };
+    data.product_quantity = data.package_quantity || null;
     data.pack_size_verified = Boolean(data.package_quantity);
     data.verification_required =
       data.ingredients_source === "unavailable" ||
