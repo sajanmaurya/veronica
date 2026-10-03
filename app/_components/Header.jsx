@@ -20,7 +20,7 @@ export default function Header({ clerkEnabled = true }) {
 
   return (
     <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6">
-      <div className="relative mx-auto max-w-6xl rounded-[1.5rem] border border-white/75 bg-white/55 px-3 py-2 shadow-[0_10px_35px_rgba(6,59,47,.08)] backdrop-blur-2xl sm:rounded-full">
+      <div className="relative mx-auto max-w-6xl rounded-[1.5rem] border border-white/80 bg-[rgba(235,244,247,.66)] px-3 py-2 shadow-[0_12px_36px_rgba(8,35,67,.10)] backdrop-blur-2xl sm:rounded-full">
         <div className="flex items-center justify-between">
           <Link
             href="/UserProfile"
@@ -47,8 +47,8 @@ export default function Header({ clerkEnabled = true }) {
                 href={href}
                 className={`rounded-full px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[.12em] transition ${
                   pathname === href
-                    ? "bg-[#0B5F4A] text-white shadow-[0_5px_16px_rgba(11,95,74,.18)]"
-                    : "text-slate-500 hover:bg-white/70 hover:text-[#0B5F4A]"
+                    ? "veronica-primary-gradient text-white shadow-[0_6px_18px_rgba(8,36,78,.22)]"
+                    : "text-slate-500 hover:bg-white/70 hover:text-[#0D3470]"
                 }`}
               >
                 {label}
@@ -79,7 +79,7 @@ export default function Header({ clerkEnabled = true }) {
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/65 text-[#0B5F4A] shadow-sm transition hover:bg-white/85 sm:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/70 text-[#0D3470] shadow-sm transition hover:bg-white/90 sm:hidden"
             >
               {menuOpen ? (
                 <span className="text-xl leading-none">×</span>
@@ -104,8 +104,8 @@ export default function Header({ clerkEnabled = true }) {
                   onClick={() => setMenuOpen(false)}
                   className={`flex items-center justify-between rounded-xl px-4 py-3 font-mono text-xs font-bold uppercase tracking-[.1em] transition ${
                     pathname === href
-                      ? "bg-[#0B5F4A] text-white shadow-sm"
-                      : "text-slate-700 hover:bg-white/70 hover:text-[#0B5F4A]"
+                      ? "veronica-primary-gradient text-white shadow-sm"
+                      : "text-slate-700 hover:bg-white/70 hover:text-[#0D3470]"
                   }`}
                 >
                   <span>{label}</span>
