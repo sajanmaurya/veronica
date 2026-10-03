@@ -88,33 +88,51 @@ img {
     filter: brightness(1.04);
   }
 
-  /*
-   * Primary actions use the deep-navy gradient from the approved mockup.
-   * Green remains available for health/status semantics instead of every CTA.
-   */
-  .glass-button-primary {
-    @apply glass-button text-white;
+  .glass-button-primary,
+  .glass-button-secondary,
+  .liquid-glass-button {
+    @apply glass-button;
+    color: #0f2438;
+    border: 1px solid rgba(255, 255, 255, .78);
     background:
-      linear-gradient(135deg, var(--navy-950) 0%, var(--navy-800) 58%, var(--navy-700) 100%);
+      radial-gradient(70% 55% at 68% 4%, rgba(255,255,255,.88) 0%, rgba(255,255,255,.30) 34%, transparent 68%),
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.28) 0%,
+        rgba(228,239,244,.22) 52%,
+        rgba(198,216,225,.18) 100%
+      );
     box-shadow:
-      0 12px 26px rgba(8, 36, 78, .25),
-      inset 0 1px 0 rgba(255, 255, 255, .18);
+      0 12px 24px rgba(23,48,63,.14),
+      inset 0 1px 0 rgba(255,255,255,.98),
+      inset 0 -8px 18px rgba(63,86,101,.07);
+    backdrop-filter: blur(20px) saturate(125%);
+    -webkit-backdrop-filter: blur(20px) saturate(125%);
   }
 
-  .glass-button-primary:hover {
+  .glass-button-primary:hover,
+  .glass-button-secondary:hover,
+  .liquid-glass-button:hover {
+    transform: translateY(-2px);
+    filter: none;
+    background:
+      radial-gradient(70% 55% at 68% 4%, rgba(255,255,255,.95) 0%, rgba(255,255,255,.36) 34%, transparent 68%),
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.34) 0%,
+        rgba(235,244,247,.26) 52%,
+        rgba(205,222,230,.20) 100%
+      );
     box-shadow:
-      0 16px 34px rgba(8, 36, 78, .30),
-      inset 0 1px 0 rgba(255, 255, 255, .20);
+      0 16px 28px rgba(23,48,63,.17),
+      inset 0 1px 0 rgba(255,255,255,1),
+      inset 0 -8px 18px rgba(63,86,101,.06);
   }
 
-  .glass-button-secondary {
-    @apply glass-button text-slate-700;
-    background: rgba(245, 249, 250, .68);
-    border: 1px solid rgba(255, 255, 255, .76);
-    box-shadow:
-      0 8px 22px rgba(28, 62, 79, .08),
-      inset 0 1px 0 rgba(255, 255, 255, .82);
-    backdrop-filter: blur(22px);
+  .glass-button-primary:active,
+  .glass-button-secondary:active,
+  .liquid-glass-button:active {
+    transform: translateY(1px) scale(.995);
   }
 
   .glass-input {
@@ -147,7 +165,17 @@ img {
   }
 
   .veronica-primary-gradient {
-    background: linear-gradient(135deg, #06152f 0%, #0d3470 58%, #164d88 100%);
+    color: #0f2438;
+    border: 1px solid rgba(255,255,255,.80);
+    background:
+      radial-gradient(70% 55% at 68% 4%, rgba(255,255,255,.90) 0%, rgba(255,255,255,.32) 34%, transparent 68%),
+      linear-gradient(180deg, rgba(255,255,255,.30), rgba(214,229,236,.18));
+    box-shadow:
+      0 8px 18px rgba(23,48,63,.13),
+      inset 0 1px 0 rgba(255,255,255,.98),
+      inset 0 -6px 14px rgba(63,86,101,.06);
+    backdrop-filter: blur(18px) saturate(125%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
   }
 
   .home-cta-primary,
