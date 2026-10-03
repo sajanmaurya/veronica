@@ -352,7 +352,7 @@ const ImageUpload = () => {
                       <button
                         type="button"
                         onClick={openCamera}
-                        className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-900"
+                        className="liquid-glass-button px-4 py-2 text-xs font-bold text-slate-900"
                       >
                         Try camera again
                       </button>
@@ -373,13 +373,13 @@ const ImageUpload = () => {
                   type="button"
                   onClick={capturePhoto}
                   disabled={!cameraActive || capturing}
-                  className="glass-button-primary flex w-full items-center justify-center gap-2 py-4 text-base disabled:pointer-events-none disabled:opacity-50"
+                  className="liquid-glass-button flex w-full items-center justify-center gap-2 py-4 text-base disabled:pointer-events-none disabled:opacity-50"
                 >
                   <span aria-hidden="true">●</span>
                   <span>{capturing ? "Capturing…" : "Capture"}</span>
                 </button>
 
-                <label className="glass-surface flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-5 py-3 text-center transition hover:bg-white/80">
+                <label className="liquid-glass-button flex w-full cursor-pointer items-center justify-center gap-2 px-5 py-3 text-center">
                   <span aria-hidden="true">🖼️</span>
                   <span className="text-xs font-bold text-slate-800 sm:text-sm">
                     Upload from gallery
@@ -404,12 +404,12 @@ const ImageUpload = () => {
                   <button
                     type="button"
                     onClick={retakePhoto}
-                    className="rounded-xl bg-white/70 px-4 py-3 text-center text-xs font-bold text-slate-800"
+                    className="liquid-glass-button px-4 py-3 text-center text-xs font-bold text-slate-800"
                   >
                     📷 Retake
                   </button>
 
-                  <label className="cursor-pointer rounded-xl bg-white/70 px-4 py-3 text-center text-xs font-bold text-slate-800">
+                  <label className="liquid-glass-button cursor-pointer px-4 py-3 text-center text-xs font-bold text-slate-800">
                     🖼️ Gallery
                     <input
                       type="file"
@@ -423,7 +423,7 @@ const ImageUpload = () => {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  className="glass-button-primary w-full py-4 text-base disabled:pointer-events-none disabled:opacity-50"
+                  className="liquid-glass-button w-full py-4 text-base disabled:pointer-events-none disabled:opacity-50"
                   disabled={loading}
                 >
                   {loading ? "Analyzing image..." : "Analyze label"}
