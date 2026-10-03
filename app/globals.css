@@ -156,50 +156,32 @@ img {
     overflow: hidden;
     isolation: isolate;
     border-radius: 999px;
-    backdrop-filter: blur(24px) saturate(155%);
-    -webkit-backdrop-filter: blur(24px) saturate(155%);
-    transform: translateZ(0);
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    transition:
+      transform .2s ease,
+      box-shadow .2s ease,
+      background .2s ease;
   }
 
-  /* Long curved highlight that gives the button its wet / gel-like surface. */
   .home-cta-primary::before,
   .home-cta-secondary::before {
     content: "";
     position: absolute;
-    z-index: 0;
-    pointer-events: none;
-    left: 5%;
-    right: 5%;
-    top: 4px;
-    height: 46%;
+    left: 7%;
+    right: 7%;
+    top: 5px;
+    height: 38%;
     border-radius: 999px;
+    pointer-events: none;
     background:
       linear-gradient(
         180deg,
-        rgba(255,255,255,.76) 0%,
-        rgba(255,255,255,.30) 38%,
-        rgba(255,255,255,.06) 78%,
-        transparent 100%
+        rgba(255,255,255,.65) 0%,
+        rgba(255,255,255,.18) 58%,
+        rgba(255,255,255,.02) 100%
       );
-    filter: blur(.2px);
-    opacity: .78;
-  }
-
-  /* Small reflected droplets/refractions near the right edge. */
-  .home-cta-primary::after,
-  .home-cta-secondary::after {
-    content: "";
-    position: absolute;
     z-index: 0;
-    pointer-events: none;
-    inset: 0;
-    border-radius: inherit;
-    background:
-      radial-gradient(circle at 86% 26%, rgba(255,255,255,.80) 0 2px, transparent 3px),
-      radial-gradient(circle at 91% 36%, rgba(255,255,255,.52) 0 4px, transparent 5px),
-      radial-gradient(circle at 82% 70%, rgba(255,255,255,.32) 0 3px, transparent 4px),
-      radial-gradient(circle at 13% 73%, rgba(255,255,255,.24) 0 3px, transparent 4px);
-    opacity: .62;
   }
 
   .home-cta-primary > *,
@@ -210,74 +192,44 @@ img {
 
   .home-cta-primary {
     color: #fff;
-    border: 1px solid rgba(214,239,255,.72);
+    border: 1px solid rgba(255,255,255,.28);
     background:
       linear-gradient(
         180deg,
-        rgba(17,70,129,.91) 0%,
-        rgba(8,45,96,.94) 44%,
-        rgba(5,31,72,.96) 100%
+        rgba(23,84,155,.92) 0%,
+        rgba(10,54,114,.94) 52%,
+        rgba(6,34,78,.96) 100%
       );
     box-shadow:
-      0 16px 30px rgba(4,29,67,.25),
-      0 5px 10px rgba(4,29,67,.14),
-      inset 0 1px 0 rgba(255,255,255,.78),
-      inset 0 -10px 22px rgba(1,16,42,.28),
-      inset 10px 0 20px rgba(88,181,230,.08),
-      inset -10px 0 22px rgba(88,225,206,.08);
-  }
-
-  .home-cta-primary:hover {
-    transform: translateY(-2px) scale(1.01);
-    box-shadow:
-      0 20px 38px rgba(4,29,67,.29),
-      0 7px 13px rgba(4,29,67,.16),
-      inset 0 1px 0 rgba(255,255,255,.88),
-      inset 0 -10px 22px rgba(1,16,42,.22),
-      inset 10px 0 20px rgba(88,181,230,.10),
-      inset -10px 0 22px rgba(88,225,206,.10);
-  }
-
-  .home-cta-primary:active,
-  .home-cta-secondary:active {
-    transform: translateY(1px) scale(.992);
+      0 10px 24px rgba(4,31,72,.22),
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -8px 16px rgba(0,16,44,.20);
   }
 
   .home-cta-secondary {
     color: #0a2f68;
-    border: 1.5px solid rgba(13,52,112,.90);
+    border: 1.5px solid rgba(10,54,114,.72);
     background:
       linear-gradient(
         180deg,
-        rgba(255,255,255,.58) 0%,
-        rgba(235,245,249,.42) 46%,
-        rgba(210,228,236,.30) 100%
+        rgba(255,255,255,.42) 0%,
+        rgba(241,247,250,.30) 55%,
+        rgba(220,234,241,.22) 100%
       );
     box-shadow:
-      0 15px 28px rgba(17,54,84,.13),
-      0 4px 9px rgba(17,54,84,.08),
-      inset 0 1px 0 rgba(255,255,255,.98),
-      inset 0 -9px 20px rgba(50,91,118,.08),
-      inset 9px 0 18px rgba(86,187,222,.06),
-      inset -9px 0 18px rgba(87,208,182,.06);
+      0 10px 24px rgba(18,54,84,.10),
+      inset 0 1px 0 rgba(255,255,255,.78),
+      inset 0 -8px 14px rgba(70,98,124,.06);
   }
 
+  .home-cta-primary:hover,
   .home-cta-secondary:hover {
-    transform: translateY(-2px) scale(1.01);
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255,255,255,.69) 0%,
-        rgba(239,248,251,.49) 46%,
-        rgba(214,232,239,.35) 100%
-      );
-    box-shadow:
-      0 19px 34px rgba(17,54,84,.16),
-      0 6px 11px rgba(17,54,84,.09),
-      inset 0 1px 0 rgba(255,255,255,1),
-      inset 0 -9px 20px rgba(50,91,118,.06),
-      inset 9px 0 18px rgba(86,187,222,.07),
-      inset -9px 0 18px rgba(87,208,182,.07);
+    transform: translateY(-1px);
+  }
+
+  .home-cta-primary:active,
+  .home-cta-secondary:active {
+    transform: translateY(1px);
   }
 }
 
