@@ -680,7 +680,7 @@ const BarcodeScanning = () => {
                 startScanner();
               }}
               disabled={loading}
-              className="w-full rounded-2xl bg-emerald-600 px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 disabled:opacity-50"
+              className="liquid-glass-button w-full px-5 py-3.5 text-base font-bold disabled:opacity-50"
             >
               Scan with camera
             </button>
@@ -692,7 +692,7 @@ const BarcodeScanning = () => {
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 No product record was returned. Photograph the ingredients or nutrition label and Veronica will analyze it with Vision AI.
               </p>
-              <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-emerald-800">
+              <label className="liquid-glass-button mt-4 inline-flex cursor-pointer items-center justify-center px-5 py-3 text-sm font-bold">
                 {fallbackLoading ? "Analyzing label..." : "Analyze the product label"}
                 <input
                   type="file"
@@ -706,7 +706,7 @@ const BarcodeScanning = () => {
               <button
                 type="button"
                 onClick={resetScan}
-                className="ml-2 mt-3 rounded-2xl border border-emerald-900/10 bg-white/70 px-5 py-3 text-sm font-semibold text-emerald-800"
+                className="liquid-glass-button ml-2 mt-3 px-5 py-3 text-sm font-semibold"
               >
                 Scan another barcode
               </button>
@@ -726,7 +726,7 @@ const BarcodeScanning = () => {
             <button
               onClick={() => handleScan(data)}
               disabled={!data || loading}
-              className="rounded-xl bg-emerald-600 px-5 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="liquid-glass-button px-5 font-semibold disabled:opacity-50"
             >
               {loading ? "Searching..." : "Search"}
             </button>
@@ -753,7 +753,7 @@ const BarcodeScanning = () => {
               getResult(data)
             }
             disabled={!data || loading}
-            className="w-full bg-green-600 text-white text-lg py-3 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+            className="liquid-glass-button w-full py-3 text-lg disabled:opacity-50"
           >
             {loading
               ? "Processing..."
@@ -789,7 +789,7 @@ const BarcodeScanning = () => {
                   </p>
                 </div>
 
-                <label className="shrink-0 cursor-pointer rounded-xl bg-amber-900 px-3 py-2 text-[10px] font-bold text-white">
+                <label className="liquid-glass-button shrink-0 cursor-pointer px-3 py-2 text-[10px] font-bold">
                   {verifyLoading ? "Checking…" : "Scan label"}
                   <input
                     type="file"
@@ -810,7 +810,7 @@ const BarcodeScanning = () => {
 
             <button
               onClick={resetScan}
-              className="w-full rounded-2xl bg-slate-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-900 sm:w-auto"
+              className="liquid-glass-button w-full px-5 py-3 text-sm font-semibold sm:w-auto"
             >
               Scan Another Product
             </button>
