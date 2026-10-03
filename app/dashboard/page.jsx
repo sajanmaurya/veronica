@@ -7,13 +7,12 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-[calc(100vh-72px)] overflow-hidden">
-      <section className="home-glass-stage mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl items-center px-4 py-8 sm:px-8 lg:px-10">
-        <div className="pointer-events-none absolute left-[8%] top-[18%] -z-[1] h-72 w-72 rounded-full bg-cyan-300/30 blur-[90px] sm:h-96 sm:w-96" />
-        <div className="pointer-events-none absolute right-[7%] top-[14%] -z-[1] h-80 w-80 rounded-full bg-blue-400/28 blur-[110px] sm:h-[28rem] sm:w-[28rem]" />
-        <div className="pointer-events-none absolute bottom-[8%] left-[36%] -z-[1] h-64 w-64 rounded-full bg-emerald-300/24 blur-[100px] sm:h-80 sm:w-80" />
+      <section className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl items-center px-4 py-8 sm:px-8 lg:px-10">
+        <div className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2.35rem] border border-white/75 bg-[rgba(225,236,240,.28)] px-5 py-10 text-center shadow-[0_24px_70px_rgba(9,43,78,.10)] backdrop-blur-[30px] sm:px-12 sm:py-16 lg:px-20 lg:py-20">
+          <div className="pointer-events-none absolute left-[24%] top-[8%] h-56 w-56 rounded-full bg-emerald-300/15 blur-[90px]" />
+          <div className="pointer-events-none absolute right-[18%] top-[12%] h-64 w-64 rounded-full bg-blue-400/15 blur-[100px]" />
 
-        <div className="hero-glass relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2.35rem] px-5 py-10 text-center sm:px-12 sm:py-16 lg:px-20 lg:py-20">
-          <div className="relative z-[1]">
+          <div className="relative">
             <p className="ndot57-home mt-2 text-[10px] uppercase tracking-[.08em] text-[#0C6D73]">
               AI food intelligence
             </p>
