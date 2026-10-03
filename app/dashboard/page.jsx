@@ -17,7 +17,7 @@ export default function Dashboard() {
               AI food intelligence
             </p>
 
-            <h1 className="ndot57-home veronica-gradient-text mx-auto mt-5 max-w-5xl text-[clamp(2.5rem,6.2vw,6rem)] leading-[1.05]">
+            <h1 className="ndot57-home mx-auto mt-5 max-w-5xl text-[clamp(2.5rem,6.2vw,6rem)] leading-[1.05] text-black">
               Know what&apos;s
               <br />
               inside your food.
@@ -32,7 +32,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/BarcodeScanning")}
-                className="ndot57-home veronica-primary-gradient inline-flex min-h-14 items-center justify-center rounded-2xl px-7 text-sm text-white shadow-[0_14px_30px_rgba(8,36,78,.28)] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_18px_38px_rgba(8,36,78,.32)] focus:outline-none focus:ring-4 focus:ring-blue-300/35"
+                className="ndot57-home home-cta-primary inline-flex min-h-14 items-center justify-center rounded-2xl px-7 text-sm transition duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-blue-300/35"
               >
                 <span className="mr-2 text-base">⌁</span>
                 Open Camera Scanner
@@ -41,7 +41,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/ImageUpload")}
-                className="ndot57-home inline-flex min-h-14 items-center justify-center rounded-2xl border border-white/80 bg-white/70 px-7 text-sm text-[#0D3470] shadow-[0_10px_24px_rgba(17,54,84,.08)] backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:bg-white/90 focus:outline-none focus:ring-4 focus:ring-blue-200/45"
+                className="ndot57-home home-cta-secondary inline-flex min-h-14 items-center justify-center rounded-2xl px-7 text-sm transition duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-blue-200/45"
               >
                 <span className="mr-2 text-base">↑</span>
                 Upload Food Label
