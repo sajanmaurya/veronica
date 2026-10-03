@@ -8,7 +8,7 @@ export default function Dashboard() {
   return (
     <main className="min-h-[calc(100vh-72px)] overflow-hidden">
       <section className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl items-center px-4 py-8 sm:px-8 lg:px-10">
-        <div className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2.35rem] border border-white/80 bg-[rgba(225,236,240,.40)] px-5 py-10 text-center shadow-[0_30px_90px_rgba(9,43,78,.12)] backdrop-blur-[30px] sm:px-12 sm:py-16 lg:px-20 lg:py-20">
+        <div className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2.35rem] border border-white/75 bg-[rgba(225,236,240,.28)] px-5 py-10 text-center shadow-[0_24px_70px_rgba(9,43,78,.10)] backdrop-blur-[30px] sm:px-12 sm:py-16 lg:px-20 lg:py-20">
           <div className="pointer-events-none absolute left-[24%] top-[8%] h-56 w-56 rounded-full bg-emerald-300/15 blur-[90px]" />
           <div className="pointer-events-none absolute right-[18%] top-[12%] h-64 w-64 rounded-full bg-blue-400/15 blur-[100px]" />
 
