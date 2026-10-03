@@ -109,7 +109,7 @@ const UserProfile = () => {
 
           <button
             onClick={handleSave}
-            className="glass-button-primary mt-2 w-full py-4 text-base"
+            className="liquid-glass-button mt-2 w-full py-4 text-base"
           >
             Save Profile
           </button>
