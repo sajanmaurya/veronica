@@ -356,7 +356,7 @@ export default function PreviousSearchesPage() {
                   onClick={() => setPeriod(value)}
                   className={`rounded-full px-4 py-2 text-xs font-bold transition ${
                     period === value
-                      ? "bg-emerald-700 text-white shadow-sm"
+                      ? "liquid-glass-button shadow-sm"
                       : "text-slate-700 hover:bg-white/50"
                   }`}
                 >
