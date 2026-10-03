@@ -47,7 +47,7 @@ export default function Header({ clerkEnabled = true }) {
                 href={href}
                 className={`rounded-full px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[.12em] transition ${
                   pathname === href
-                    ? "veronica-primary-gradient text-white shadow-[0_6px_18px_rgba(8,36,78,.22)]"
+                    ? "veronica-primary-gradient shadow-[0_6px_18px_rgba(23,48,63,.14)]"
                     : "text-slate-500 hover:bg-white/70 hover:text-[#0D3470]"
                 }`}
               >
@@ -61,7 +61,7 @@ export default function Header({ clerkEnabled = true }) {
               <>
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <button className="hidden glass-button-primary px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] sm:inline-flex">
+                    <button className="hidden liquid-glass-button px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] sm:inline-flex">
                       Log in
                     </button>
                   </SignInButton>
@@ -79,7 +79,7 @@ export default function Header({ clerkEnabled = true }) {
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/70 text-[#0D3470] shadow-sm transition hover:bg-white/90 sm:hidden"
+              className="liquid-glass-button flex h-10 w-10 items-center justify-center p-0 text-[#0D3470] sm:hidden"
             >
               {menuOpen ? (
                 <span className="text-xl leading-none">×</span>
@@ -104,7 +104,7 @@ export default function Header({ clerkEnabled = true }) {
                   onClick={() => setMenuOpen(false)}
                   className={`flex items-center justify-between rounded-xl px-4 py-3 font-mono text-xs font-bold uppercase tracking-[.1em] transition ${
                     pathname === href
-                      ? "veronica-primary-gradient text-white shadow-sm"
+                      ? "veronica-primary-gradient shadow-sm"
                       : "text-slate-700 hover:bg-white/70 hover:text-[#0D3470]"
                   }`}
                 >
@@ -120,7 +120,7 @@ export default function Header({ clerkEnabled = true }) {
                   <SignInButton mode="modal">
                     <button
                       onClick={() => setMenuOpen(false)}
-                      className="glass-button-primary mb-1 mt-1 w-full py-2.5 font-mono text-xs font-bold uppercase tracking-[.08em]"
+                      className="liquid-glass-button mb-1 mt-1 w-full py-2.5 font-mono text-xs font-bold uppercase tracking-[.08em]"
                     >
                       Log in
                     </button>
