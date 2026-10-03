@@ -20,7 +20,7 @@ export default function Header({ clerkEnabled = true }) {
 
   return (
     <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6">
-      <div className="relative mx-auto max-w-6xl rounded-[1.5rem] border border-white/80 bg-[rgba(235,244,247,.66)] px-3 py-2 shadow-[0_12px_36px_rgba(8,35,67,.10)] backdrop-blur-2xl sm:rounded-full">
+      <div className="site-header-glass relative mx-auto max-w-6xl rounded-[1.5rem] px-3 py-2 sm:rounded-full">
         <div className="flex items-center justify-between">
           <Link
             href="/UserProfile"
@@ -48,7 +48,7 @@ export default function Header({ clerkEnabled = true }) {
                 className={`rounded-full px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[.12em] transition ${
                   pathname === href
                     ? "veronica-primary-gradient shadow-[0_6px_18px_rgba(23,48,63,.14)]"
-                    : "text-slate-500 hover:bg-white/70 hover:text-[#0D3470]"
+                    : "text-slate-500 hover:bg-white/25 hover:text-[#0D3470]"
                 }`}
               >
                 {label}
@@ -67,7 +67,7 @@ export default function Header({ clerkEnabled = true }) {
                   </SignInButton>
                 </SignedOut>
                 <SignedIn>
-                  <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 sm:block">
+                  <div className="hidden rounded-full border border-white/80 bg-white/20 p-1 sm:block">
                     <UserButton afterSignOutUrl="/" />
                   </div>
                 </SignedIn>
@@ -105,7 +105,7 @@ export default function Header({ clerkEnabled = true }) {
                   className={`flex items-center justify-between rounded-xl px-4 py-3 font-mono text-xs font-bold uppercase tracking-[.1em] transition ${
                     pathname === href
                       ? "veronica-primary-gradient shadow-sm"
-                      : "text-slate-700 hover:bg-white/70 hover:text-[#0D3470]"
+                      : "text-slate-700 hover:bg-white/25 hover:text-[#0D3470]"
                   }`}
                 >
                   <span>{label}</span>
@@ -127,7 +127,7 @@ export default function Header({ clerkEnabled = true }) {
                   </SignInButton>
                 </SignedOut>
                 <SignedIn>
-                  <div className="mt-1 flex items-center justify-between rounded-xl border border-white/70 bg-white/45 px-4 py-2.5">
+                  <div className="mt-1 flex items-center justify-between rounded-xl border border-white/70 bg-white/16 px-4 py-2.5">
                     <span className="text-xs font-semibold text-slate-600">
                       Account
                     </span>
