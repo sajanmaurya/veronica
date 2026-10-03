@@ -3,21 +3,39 @@
 @tailwind utilities;
 
 :root {
-  --ink: #10241e;
-  --brand-950: #063b2f;
-  --brand-800: #0b5f4a;
-  --brand-700: #138261;
-  --brand-500: #28a879;
-  --brand-300: #7dd9a5;
-  --brand-100: #e8f8ef;
-  --glass-bg: rgba(255, 255, 255, .26);
-  --glass-strong: rgba(255, 255, 255, .42);
-  --glass-border: rgba(255, 255, 255, .62);
-  --glass-shadow: 0 16px 42px rgba(6, 59, 47, .12);
+  --ink: #10253d;
+
+  /* Core Veronica palette: cool green + blue + soft grey */
+  --brand-950: #071a37;
+  --brand-900: #0a2147;
+  --brand-800: #0d3470;
+  --brand-700: #145685;
+  --brand-600: #16709a;
+  --brand-500: #159b87;
+  --brand-400: #35b99a;
+  --brand-300: #7ad7c2;
+  --brand-100: #e5f5f1;
+
+  --navy-950: #06152f;
+  --navy-900: #0a2147;
+  --navy-800: #0d3470;
+  --navy-700: #164d88;
+
+  --cool-surface: rgba(226, 237, 240, .38);
+  --cool-surface-strong: rgba(239, 246, 248, .58);
+  --glass-bg: rgba(231, 240, 242, .28);
+  --glass-strong: rgba(241, 247, 248, .50);
+  --glass-border: rgba(255, 255, 255, .72);
+  --glass-shadow: 0 18px 50px rgba(8, 35, 67, .12);
 }
 
-* { border-color: rgba(6, 59, 47, .1); }
-html { scroll-behavior: smooth; }
+* {
+  border-color: rgba(24, 67, 90, .1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   min-height: 100vh;
@@ -25,15 +43,21 @@ body {
   color: var(--ink);
   font-family: var(--font-space-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   background:
-    radial-gradient(circle at 50% 0%, rgba(155, 231, 181, .18), transparent 34%),
-    linear-gradient(rgba(246, 251, 248, .56), rgba(234, 246, 239, .68)),
+    radial-gradient(circle at 18% 8%, rgba(37, 177, 137, .18), transparent 28%),
+    radial-gradient(circle at 82% 12%, rgba(55, 126, 190, .20), transparent 32%),
+    linear-gradient(rgba(228, 238, 240, .54), rgba(204, 221, 228, .68)),
     url("/food-glass-bg.avif") center / cover fixed;
 }
 
-img { max-width: 100%; display: block; }
+img {
+  max-width: 100%;
+  display: block;
+}
 
 @layer components {
-  .app-content { min-height: 100vh; }
+  .app-content {
+    min-height: 100vh;
+  }
 
   .app-canvas {
     min-height: calc(100vh - 82px);
@@ -41,14 +65,19 @@ img { max-width: 100%; display: block; }
   }
 
   .glass-surface {
-    background: linear-gradient(135deg, rgba(255,255,255,.48), rgba(255,255,255,.18));
+    background:
+      linear-gradient(135deg, rgba(245, 249, 250, .58), rgba(214, 229, 234, .24));
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,.72);
-    backdrop-filter: blur(28px) saturate(145%);
-    -webkit-backdrop-filter: blur(28px) saturate(145%);
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, .78);
+    backdrop-filter: blur(30px) saturate(140%);
+    -webkit-backdrop-filter: blur(30px) saturate(140%);
   }
 
-  .glass-panel { @apply glass-surface rounded-[2rem]; }
+  .glass-panel {
+    @apply glass-surface rounded-[2rem];
+  }
 
   .glass-button {
     @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-200;
@@ -56,50 +85,80 @@ img { max-width: 100%; display: block; }
 
   .glass-button:hover {
     transform: translateY(-1px);
-    filter: brightness(1.05);
+    filter: brightness(1.04);
   }
 
+  /*
+   * Primary actions use the deep-navy gradient from the approved mockup.
+   * Green remains available for health/status semantics instead of every CTA.
+   */
   .glass-button-primary {
     @apply glass-button text-white;
-    background: linear-gradient(135deg, var(--brand-800), var(--brand-500));
+    background:
+      linear-gradient(135deg, var(--navy-950) 0%, var(--navy-800) 58%, var(--navy-700) 100%);
     box-shadow:
-      0 10px 22px rgba(11,95,74,.22),
-      inset 0 1px 0 rgba(255,255,255,.25);
+      0 12px 26px rgba(8, 36, 78, .25),
+      inset 0 1px 0 rgba(255, 255, 255, .18);
+  }
+
+  .glass-button-primary:hover {
+    box-shadow:
+      0 16px 34px rgba(8, 36, 78, .30),
+      inset 0 1px 0 rgba(255, 255, 255, .20);
   }
 
   .glass-button-secondary {
-    @apply glass-button glass-surface text-slate-700;
+    @apply glass-button text-slate-700;
+    background: rgba(245, 249, 250, .68);
+    border: 1px solid rgba(255, 255, 255, .76);
+    box-shadow:
+      0 8px 22px rgba(28, 62, 79, .08),
+      inset 0 1px 0 rgba(255, 255, 255, .82);
+    backdrop-filter: blur(22px);
   }
 
   .glass-input {
     @apply w-full rounded-2xl px-4 py-3 text-slate-800 outline-none transition;
-    background: rgba(255,255,255,.34);
-    border: 1px solid rgba(255,255,255,.62);
+    background: rgba(244, 249, 250, .52);
+    border: 1px solid rgba(255, 255, 255, .72);
   }
 
   .glass-input:focus {
-    box-shadow: 0 0 0 4px rgba(40,168,121,.17);
+    box-shadow: 0 0 0 4px rgba(35, 105, 158, .16);
+    border-color: rgba(22, 77, 136, .24);
   }
 
   .eyebrow {
     @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em];
-    color: var(--brand-800);
-    background: rgba(232, 248, 239, .58);
-    border: 1px solid rgba(255,255,255,.6);
+    color: #0c6d73;
+    background: rgba(225, 245, 241, .62);
+    border: 1px solid rgba(255, 255, 255, .66);
   }
 
   .brand-mark-glow {
-    filter: drop-shadow(0 5px 14px rgba(40,168,121,.18));
+    filter: drop-shadow(0 5px 14px rgba(27, 119, 133, .18));
+  }
+
+  .veronica-gradient-text {
+    background: linear-gradient(90deg, #0e8f74 0%, #0c6879 46%, #0b2e67 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .veronica-primary-gradient {
+    background: linear-gradient(135deg, #06152f 0%, #0d3470 58%, #164d88 100%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,*::before,*::after {
-    animation-duration:.01ms!important;
-    transition-duration:.01ms!important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
   }
 }
-
 
 @font-face {
   font-family: "Ndot57Home";
