@@ -32,7 +32,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/BarcodeScanning")}
-                className="ndot57-home home-cta-primary inline-flex min-h-14 items-center justify-center rounded-2xl px-7 text-sm transition duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-blue-300/35"
+                className="ndot57-home home-cta-primary inline-flex min-h-14 items-center justify-center rounded-full px-7 text-sm transition duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-blue-300/35"
               >
                 <span className="mr-2 text-base">⌁</span>
                 Open Camera Scanner
@@ -41,7 +41,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/ImageUpload")}
-                className="ndot57-home home-cta-secondary inline-flex min-h-14 items-center justify-center rounded-2xl px-7 text-sm transition duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-blue-200/45"
+                className="ndot57-home home-cta-secondary inline-flex min-h-14 items-center justify-center rounded-full px-7 text-sm transition duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-blue-200/45"
               >
                 <span className="mr-2 text-base">↑</span>
                 Upload Food Label
