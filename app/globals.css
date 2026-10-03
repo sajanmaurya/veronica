@@ -149,6 +149,85 @@ img {
   .veronica-primary-gradient {
     background: linear-gradient(135deg, #06152f 0%, #0d3470 58%, #164d88 100%);
   }
+
+  .home-cta-primary,
+  .home-cta-secondary {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    backdrop-filter: blur(22px) saturate(145%);
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+  }
+
+  .home-cta-primary::before,
+  .home-cta-secondary::before {
+    content: "";
+    position: absolute;
+    inset: 1px 10px auto 10px;
+    height: 42%;
+    border-radius: 999px;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(255,255,255,.36),
+      rgba(255,255,255,.08) 62%,
+      transparent
+    );
+    opacity: .7;
+  }
+
+  .home-cta-primary {
+    color: white;
+    border: 1px solid rgba(255,255,255,.34);
+    background:
+      linear-gradient(
+        135deg,
+        rgba(6,21,47,.94) 0%,
+        rgba(13,52,112,.91) 58%,
+        rgba(22,77,136,.88) 100%
+      );
+    box-shadow:
+      0 14px 30px rgba(8,36,78,.26),
+      inset 0 1px 0 rgba(255,255,255,.42),
+      inset 0 -12px 28px rgba(2,15,40,.16);
+  }
+
+  .home-cta-primary:hover {
+    box-shadow:
+      0 18px 38px rgba(8,36,78,.31),
+      inset 0 1px 0 rgba(255,255,255,.50),
+      inset 0 -12px 28px rgba(2,15,40,.12);
+  }
+
+  .home-cta-secondary {
+    color: #0a2f68;
+    border: 1.5px solid rgba(13,52,112,.96);
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255,255,255,.58) 0%,
+        rgba(235,244,247,.46) 52%,
+        rgba(210,227,234,.36) 100%
+      );
+    box-shadow:
+      0 12px 26px rgba(17,54,84,.10),
+      inset 0 1px 0 rgba(255,255,255,.90),
+      inset 0 -10px 24px rgba(48,92,120,.06);
+  }
+
+  .home-cta-secondary:hover {
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255,255,255,.70) 0%,
+        rgba(239,247,249,.55) 52%,
+        rgba(215,232,238,.43) 100%
+      );
+    box-shadow:
+      0 16px 32px rgba(17,54,84,.14),
+      inset 0 1px 0 rgba(255,255,255,.95),
+      inset 0 -10px 24px rgba(48,92,120,.05);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
