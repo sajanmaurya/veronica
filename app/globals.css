@@ -178,6 +178,12 @@ img {
     -webkit-backdrop-filter: blur(18px) saturate(125%);
   }
 
+  .ndot57-home.home-cta-primary,
+  .ndot57-home.home-cta-secondary {
+    font-weight: 600;
+    letter-spacing: .01em;
+  }
+
   .home-cta-primary,
   .home-cta-secondary {
     position: relative;
