@@ -46,7 +46,7 @@ body {
     radial-gradient(circle at 18% 8%, rgba(37, 177, 137, .18), transparent 28%),
     radial-gradient(circle at 82% 12%, rgba(55, 126, 190, .20), transparent 32%),
     linear-gradient(rgba(228, 238, 240, .54), rgba(204, 221, 228, .68)),
-    url("/food-glass-bg.avif") center / cover fixed;
+    url("/veronica-fruit-bg.webp") center / cover fixed;
 }
 
 img {
