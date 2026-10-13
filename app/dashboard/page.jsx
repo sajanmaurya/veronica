@@ -17,7 +17,7 @@ export default function Dashboard() {
               AI food intelligence
             </p>
 
-            <h1 className="ndot57-home mx-auto mt-5 max-w-5xl text-[clamp(2.5rem,6.2vw,6rem)] leading-[1.05] text-black">
+            <h1 className="ndot57-home mx-auto mt-5 max-w-5xl text-[clamp(2.5rem,6.2vw,6rem)] leading-[1.05] text-red-600">
               Know what&apos;s
               <br />
               inside your food.
