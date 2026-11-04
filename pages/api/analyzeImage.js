@@ -1,3 +1,4 @@
+import {requireUser,limitUsage,getTrustedProfile} from "@/lib/apiAuth";
 import {scoreEvidence} from "@/lib/foodMath.mjs";
 export const config = {
   api: {
@@ -45,9 +46,8 @@ function normalizeNutrition(nutrition) {
     "protein_g",
   ];
 
-  const macroSum = massFields
-    .filter((key) => key !== "fiber_g")
-    .reduce((sum, key) => sum + (Number(result[key]) || 0), 0);
+  const macroSum = ["total_fat_g","carbohydrates_g","protein_g"]
+    .reduce((sum,key)=>sum+(Number(result[key])||0),0);
 
   let convertedFrom100g = false;
 
@@ -286,6 +286,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const userId=requireUser(req,res);if(!userId)return;
+    if(!(await limitUsage(userId,"image-ai",20,res)))return;
     const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
@@ -299,7 +301,7 @@ export default async function handler(req, res) {
 
     const form = formidable({
       multiples: false,
-      maxFileSize: 10 * 1024 * 1024,
+      maxFileSize: 4 * 1024 * 1024,
       filter: ({ mimetype }) =>
         !!mimetype && mimetype.startsWith("image/"),
     });
@@ -333,19 +335,7 @@ export default async function handler(req, res) {
 
     const imageBuffer = fs.readFileSync(imagePath);
 
-    let profile = {};
-
-    try {
-      const profileValue = Array.isArray(fields.profile)
-        ? fields.profile[0]
-        : fields.profile;
-
-      profile = profileValue
-        ? JSON.parse(profileValue)
-        : {};
-    } catch {
-      profile = {};
-    }
+    const profile=await getTrustedProfile(userId);
 
     const prompt = `
 You are Veronica, a careful food-package analysis assistant.
@@ -528,7 +518,7 @@ Return data matching the supplied JSON schema.
     const text =
       result?.choices?.[0]?.message?.content || "";
 
-    console.log("Groq Qwen image analysis:", text);
+    // Never log user-specific AI analysis content.
 
     const data = cleanJson(text);
 

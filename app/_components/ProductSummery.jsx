@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
 import { toast } from "react-toastify";
@@ -179,6 +179,7 @@ export default function ProductSummary({
   imageNutritionImage,
 }) {
   const { user } = useUser();
+  const saveRequestIds=useRef(new WeakMap());
   const { profile } = useUserProfile();
 
   const [error, setError] = useState(null);
@@ -231,6 +232,8 @@ export default function ProductSummary({
 
     async function saveSearch() {
       if (!user || !aiData) return;
+      let requestId=saveRequestIds.current.get(aiData);
+      if(!requestId){requestId=crypto.randomUUID();saveRequestIds.current.set(aiData,requestId)}
 
       try {
         const frontImageData = await makePermanentImageData(imageFrontUrl);
@@ -249,6 +252,7 @@ export default function ProductSummary({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            clientRequestId: requestId,
             productName: productName || aiData.product_name || "Unknown product",
             imageFrontUrl: permanentFrontUrl,
             imageNutritionImage: permanentNutritionUrl,
@@ -441,14 +445,14 @@ export default function ProductSummary({
                 </div>
                 {nutrition.serving_size && (
                   <span className="text-[10px] font-semibold text-slate-400">
-                    {nutrition.serving_size}
+                    {nutrition.label_basis==="per_100g"?"Per 100 g":nutrition.label_basis==="per_100ml"?"Per 100 ml":nutrition.serving_size}
                   </span>
                 )}
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {topNutrition.map(([label, key, value, unit]) => {
-                  const status = statusFor(key, value);
+                  const status = nutrition.label_basis==="per_100g"?statusFor(key,value):{label:"See basis",tone:"slate"};
 
                   return (
                     <div
