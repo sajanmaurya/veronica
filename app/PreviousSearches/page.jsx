@@ -3,7 +3,13 @@ import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 export default function PreviousSearchesPage(){
   const [items,setItems]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState("");
-  const [query,setQuery]=useState(""),[period,setPeriod]=useState("all");
+  const [query,setQuery]=useState(""),[period,setPeriod]=useState("all"),[deleting,setDeleting]=useState("");
+  async function remove(id){
+    if(!window.confirm("Delete this saved scan?"))return;
+    setDeleting(id);
+    try{const r=await fetch("/api/previousSearches/products?id="+encodeURIComponent(id),{method:"DELETE"});if(!r.ok)throw Error("Cannot delete scan");setItems(list=>list.filter(x=>x.id!==id))}
+    catch(e){setError(e.message)}finally{setDeleting("")}
+  }
   useEffect(()=>{
     let active=true;
     fetch("/api/previousSearches/products",{cache:"no-store"})
@@ -59,6 +65,7 @@ export default function PreviousSearchesPage(){
               <p className="mt-2 text-xs">Nutrition source: {ai.nutrition_source||"Unknown"}</p>
               <p className="mt-1 text-xs">Ingredients source: {ai.ingredients_source||"Unknown"}</p>
             </details>
+            <button type="button" onClick={()=>remove(item.id)} disabled={deleting===item.id} className="rounded-lg border border-rose-100 px-3 py-1.5 text-xs font-semibold text-rose-700">{deleting===item.id?"Removing...":"Delete scan"}</button>
           </article>;
         })}
       </div>}

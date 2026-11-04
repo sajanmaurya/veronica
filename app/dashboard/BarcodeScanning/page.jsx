@@ -1,5 +1,5 @@
-import {prepareFoodImage} from "@/lib/imageCompression";
 "use client";
+import {prepareFoodImage} from "@/lib/imageCompression";
 
 import React, { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";

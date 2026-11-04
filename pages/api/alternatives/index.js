@@ -15,7 +15,7 @@ const CATEGORY_WEIGHTS = {
   default: { sugar: 0.2, sodium: 0.2, saturatedFat: 0.2, calories: 0.15, fiber: 0.15, protein: 0.1 },
 };
 
-function finite(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }
+function finite(value) { if(value==null||value==="")return null; const n = Number(value); return Number.isFinite(n) ? n : null; }
 
 function parseServingGrams(value) {
   const match = String(value || "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(g|gram|grams)\b/i);
@@ -28,8 +28,8 @@ function currentPer100g(product) {
     return {
       sugar: finite(direct.sugars ?? direct.sugar),
       sodium: direct.sodium_mg != null ? finite(direct.sodium_mg) : (finite(direct.sodium) == null ? null : finite(direct.sodium) * 1000),
-      saturatedFat: finite(direct.saturated_fat),
-      transFat: finite(direct.trans_fat),
+      saturatedFat: finite(direct["saturated-fat"] ?? direct.saturated_fat),
+      transFat: finite(direct["trans-fat"] ?? direct.trans_fat),
       calories: finite(direct.energy_kcal ?? direct["energy-kcal"]),
       fiber: finite(direct.fiber),
       protein: finite(direct.proteins ?? direct.protein),
