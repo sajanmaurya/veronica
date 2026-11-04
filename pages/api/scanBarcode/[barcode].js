@@ -1,38 +1,3 @@
-// export default async function handler(req, res) {
-//   const { barcode } = req.query;
-
-//   if (typeof barcode !== "string" || !/^\d{8,14}$/.test(barcode)) {
-//     return res.status(400).json({ error: "Barcode is required" });
-//   }
-
-//   try {
-//     const response = await fetch(
-//       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
-      { signal: AbortSignal.timeout(9000), headers: {"User-Agent":"Veronica/1.0 (food barcode lookup)"} }
-//     );
-
-//     if (!response.ok) {
-//       const errorText = await response.text();
-//       console.error("API Error Response:", errorText);
-//       throw new Error(
-//         `Failed to fetch data from OpenFoodFacts: ${response.statusText}`
-//       );
-//     }
-
-//     const data = await response.json();
-
-//     if (data.status === 1 && data.product) {
-//       res.status(200).json({ success: true, data });
-//       console.log(data, "product data from openfoodfacts");
-//     } else {
-//       res.status(404).json({ success: false, error: "Product not found" });
-//     }
-//   } catch (error) {
-//     console.error("Error fetching product details:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// }
-
 const cleanFoodData = (product) => ({
   barcode: product.code || "Unknown",
   product_name: product.product_name || product.product_name_en || "Unknown",
@@ -91,21 +56,20 @@ const cleanFoodData = (product) => ({
 export default async function handler(req, res) {
   const { barcode } = req.query;
 
-  if (!barcode) {
+  if (req.method !== "GET") return res.status(405).json({error:"Method not allowed"});
+  if (typeof barcode !== "string" || !/^\d{8,14}$/.test(barcode)) {
     return res.status(400).json({ error: "Barcode is required" });
   }
 
   try {
     const response = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
+      {signal:AbortSignal.timeout(9000),headers:{"User-Agent":"Veronica/1.0 (food barcode lookup)"}}
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API Error Response:", errorText);
-      throw new Error(
-        `Failed to fetch data from OpenFoodFacts: ${response.statusText}`
-      );
+      console.warn("Open Food Facts responded with",response.status);
+      throw new Error("Open Food Facts request failed");
     }
 
     const data = await response.json();
