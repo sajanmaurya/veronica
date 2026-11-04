@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
+import { toast } from "react-toastify";
 
 async function makePermanentImageData(sourceUrl) {
   if (!sourceUrl) return null;
@@ -178,12 +179,13 @@ export default function ProductSummary({
   imageNutritionImage,
 }) {
   const { user } = useUser();
-  const saveRequestIds=useRef(new WeakMap());
   const { profile } = useUserProfile();
 
   const [error, setError] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
   const [alternativesLoading, setAlternativesLoading] = useState(false);
+  const [portion,setPortion]=useState("100");
+  const [mealSaving,setMealSaving]=useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,8 +231,6 @@ export default function ProductSummary({
 
     async function saveSearch() {
       if (!user || !aiData) return;
-      let requestId=saveRequestIds.current.get(aiData);
-      if(!requestId){requestId=crypto.randomUUID();saveRequestIds.current.set(aiData,requestId)}
 
       try {
         const frontImageData = await makePermanentImageData(imageFrontUrl);
@@ -249,7 +249,6 @@ export default function ProductSummary({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clientRequestId: requestId,
             productName: productName || aiData.product_name || "Unknown product",
             imageFrontUrl: permanentFrontUrl,
             imageNutritionImage: permanentNutritionUrl,
@@ -270,6 +269,19 @@ export default function ProductSummary({
       cancelled = true;
     };
   }, [aiData, imageFrontUrl, imageNutritionImage, productName, user]);
+
+  useEffect(()=>setPortion(aiData?.nutrition?.label_basis==="per_serving"?"1":"100"),[aiData]);
+  async function addMeal(){
+    if(mealSaving||!user||!aiData)return;
+    const basis=aiData.nutrition?.label_basis;
+    const unit=basis==="per_100g"?"g":basis==="per_100ml"?"ml":basis==="per_serving"?"servings":null;
+    if(!unit){toast.error("Verify the serving basis before logging food.");return;}
+    setMealSaving(true);
+    try{
+      const res=await fetch("/api/consumption",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({productName:productName||aiData.product_name||"Unknown product",nutrition:aiData.nutrition,portion:Number(portion),unit})});
+      const body=await res.json();if(!res.ok)throw Error(body.error||"Could not record meal");toast.success("Added to food log");
+    }catch(err){toast.error(err.message)}finally{setMealSaving(false)}
+  }
 
   const visibleIngredients = useMemo(
     () => (Array.isArray(aiData?.ingredients) ? aiData.ingredients.filter(Boolean) : []),
@@ -698,6 +710,33 @@ export default function ProductSummary({
                 )}
               </div>
             </details>
+
+            {Array.isArray(aiData.score_evidence) && aiData.score_evidence.length > 0 && (
+              <section className="mt-5 rounded-2xl border border-white/80 bg-white/70 p-4">
+                <h2 className="text-base font-bold text-slate-900">Nutrition evidence behind the assessment</h2>
+                <p className="mt-1 text-[11px] text-slate-600">These measured factors help you assess the product. They do not reveal the AI model's exact scoring formula.</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {aiData.score_evidence.map((factor,i)=><div key={i} className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-[11px] font-bold text-slate-800">{factor.label}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{factor.value} {factor.unit}</p>
+                    <p className={`mt-1 text-[10px] font-bold ${factor.flag==="high"?"text-rose-700":factor.flag==="positive"||factor.flag==="low"?"text-emerald-700":"text-amber-700"}`}>{factor.flag}</p>
+                  </div>)}
+                </div>
+                <p className="mt-3 text-[10px] text-slate-500">Source: {aiData.nutrition_source||"Unknown"} · Verify the package for important dietary decisions.</p>
+              </section>
+            )}
+
+            <section className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+              <h2 className="text-base font-bold text-emerald-950">Did you eat this?</h2>
+              <p className="mt-1 text-[11px] text-slate-700">Scanning alone will not change your food log. Enter the actual portion you consumed.</p>
+              {user?<div className="mt-3 flex flex-wrap items-end gap-2">
+                <label className="text-xs font-semibold text-slate-700">Portion ({aiData.nutrition?.label_basis==="per_100g"?"grams":aiData.nutrition?.label_basis==="per_100ml"?"ml":"servings"})
+                  <input className="glass-input mt-1 block w-28" type="number" min="0.1" max="5000" step="0.1" value={portion} onChange={e=>setPortion(e.target.value)}/>
+                </label>
+                <button type="button" disabled={mealSaving||!["per_100g","per_100ml","per_serving"].includes(aiData.nutrition?.label_basis)} onClick={addMeal} className="liquid-glass-button rounded-xl px-4 py-3 text-xs font-bold">{mealSaving?"Saving...":"I ate this"}</button>
+                <a href="/Consumption" className="rounded-xl border border-emerald-200 bg-white px-4 py-3 text-xs font-semibold text-emerald-800">View log</a>
+              </div>:<p className="mt-2 text-xs text-emerald-800">Sign in to record meals.</p>}
+            </section>
 
             {(alternativesLoading || alternatives.length > 0) && (
             <div className="mt-4">

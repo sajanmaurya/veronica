@@ -11,6 +11,8 @@ const links = [
   ["/dashboard/ImageUpload", "Analyze"],
   ["/dashboard/BarcodeScanning", "Scan"],
   ["/PreviousSearches", "History"],
+  ["/Compare", "Compare"],
+  ["/Consumption", "Food log"],
   ["/UserProfile", "Profile"],
 ];
 
@@ -40,7 +42,7 @@ export default function Header({ clerkEnabled = true }) {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-1 sm:flex">
+          <nav className="hidden items-center gap-1 md:flex">
             {links.map(([href, label]) => (
               <Link
                 key={href}
@@ -61,13 +63,13 @@ export default function Header({ clerkEnabled = true }) {
               <>
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <button className="hidden liquid-glass-button px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] sm:inline-flex">
+                    <button className="hidden liquid-glass-button px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[.08em] md:inline-flex">
                       Log in
                     </button>
                   </SignInButton>
                 </SignedOut>
                 <SignedIn>
-                  <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 sm:block">
+                  <div className="hidden rounded-full border border-white/80 bg-white/60 p-1 md:block">
                     <UserButton afterSignOutUrl="/" />
                   </div>
                 </SignedIn>
@@ -79,7 +81,7 @@ export default function Header({ clerkEnabled = true }) {
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
-              className="liquid-glass-button flex h-10 w-10 items-center justify-center p-0 text-[#0D3470] sm:hidden"
+              className="liquid-glass-button flex h-10 w-10 items-center justify-center p-0 text-[#0D3470] md:hidden"
             >
               {menuOpen ? (
                 <span className="text-xl leading-none">×</span>
@@ -95,7 +97,7 @@ export default function Header({ clerkEnabled = true }) {
         </div>
 
         {menuOpen && (
-          <nav className="mt-2 border-t border-white/60 pt-2 sm:hidden">
+          <nav className="mt-2 border-t border-white/60 pt-2 md:hidden">
             <div className="grid gap-1 pb-1">
               {links.map(([href, label]) => (
                 <Link
