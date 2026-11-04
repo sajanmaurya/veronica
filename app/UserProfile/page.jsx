@@ -1,122 +1,30 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { useUserProfile } from "@/context/UserProfileContext";
-import { toast } from "react-toastify";
-
-const UserProfile = () => {
-  const { profile, setProfile } = useUserProfile();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [diseases, setDiseases] = useState("");
-  const [allergies, setAllergies] = useState("");
-  const [dietaryPreferences, setDietaryPreferences] = useState("");
-
-  useEffect(() => {
-    if (profile) {
-      setName(profile.name || "");
-      setEmail(profile.email || "");
-      setDiseases(profile.diseases || "");
-      setAllergies(profile.allergies || "");
-      setDietaryPreferences(profile.dietaryPreferences || "");
-    }
-  }, [profile]);
-
-  const handleSave = async () => {
-    try {
-      const updatedProfile = {
-        ...profile,
-        name: name.trim() || "Guest User",
-        email: email.trim() || "guest@example.com",
-        diseases,
-        allergies,
-        dietaryPreferences,
-      };
-
-      localStorage.setItem("veronica-profile", JSON.stringify(updatedProfile));
-      setProfile(updatedProfile);
-      toast.success("Profile updated");
-    } catch (error) {
-      toast.error("Failed to update profile");
-    }
-  };
-
-  return (
-    <div className="app-canvas flex items-center justify-center">
-      <div className="glass-panel w-full max-w-xl p-6 sm:p-8">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-300 via-lime-400 to-emerald-600 text-2xl font-bold text-white shadow-lg shadow-emerald-900/15">
-            ♥
-          </div>
-          <h2 className="text-3xl font-semibold tracking-[-.04em] text-slate-900">Health Profile</h2>
-        </div>
-
-        <div className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="Enter your name"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Diseases</label>
-            <input
-              type="text"
-              value={diseases}
-              onChange={(e) => setDiseases(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="e.g. Diabetes, Hypertension"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Dietary preferences</label>
-            <input
-              type="text"
-              value={dietaryPreferences}
-              onChange={(e) => setDietaryPreferences(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="e.g. Vegetarian, Vegan, Gluten-free"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Allergies</label>
-            <input
-              type="text"
-              value={allergies}
-              onChange={(e) => setAllergies(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="e.g. Peanuts, Gluten"
-            />
-          </div>
-
-          <button
-            onClick={handleSave}
-            className="liquid-glass-button mt-2 w-full py-4 text-base"
-          >
-            Save Profile
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default UserProfile;
+import {useEffect,useState} from "react";
+import {toast} from "react-toastify";
+import {useUserProfile} from "@/context/UserProfileContext";
+export default function UserProfile(){
+  const {profile,setProfile,loading}=useUserProfile();
+  const [fields,setFields]=useState({name:"",email:"",diseases:"",allergies:"",dietaryPreferences:""});
+  const [saving,setSaving]=useState(false);
+  useEffect(()=>{setFields({name:profile.name||"",email:profile.email||"",diseases:profile.diseases||"",allergies:profile.allergies||"",dietaryPreferences:profile.dietaryPreferences||""})},[profile]);
+  async function save(e){
+    e.preventDefault();setSaving(true);
+    try{
+      const r=await fetch("/api/auth/userProfile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(fields)});
+      const data=await r.json();
+      if(!r.ok)throw Error(data.error||"Save failed");
+      setProfile(data);localStorage.removeItem("veronica-profile");toast.success("Profile saved");
+    }catch(error){toast.error(error.message)}finally{setSaving(false)}
+  }
+  const labels=[["name","Name"],["email","Email"],["diseases","Health conditions (optional)"],["allergies","Allergies (optional)"],["dietaryPreferences","Dietary preferences"]];
+  return <main className="app-canvas flex items-center justify-center p-5">
+    <form onSubmit={save} className="glass-panel w-full max-w-xl space-y-5 p-6 sm:p-8">
+      <h1 className="text-2xl font-bold text-slate-900">Private health profile</h1>
+      <p className="text-sm text-slate-600">Only add health details you choose to share. Information is for food guidance, not medical advice.</p>
+      {labels.map(([key,label])=><label key={key} className="block text-sm font-semibold text-slate-700">{label}
+        <input className="glass-input mt-2 block w-full" type={key==="email"?"email":"text"} value={fields[key]} maxLength={key==="email"?254:500} onChange={e=>setFields(f=>({...f,[key]:e.target.value}))}/>
+      </label>)}
+      <button disabled={saving||loading} className="liquid-glass-button w-full py-3">{saving?"Saving...":"Save profile"}</button>
+    </form>
+  </main>
+}

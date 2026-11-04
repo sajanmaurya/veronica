@@ -5,6 +5,7 @@ import Header from "./_components/Header";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserProfileProvider } from "@/context/UserProfileContext";
+import ProfileSync from "@/context/ProfileSync";
 import ServiceWorkerRegistration from "./ServiceWorkerRegistration";
 
 const spaceMono = Space_Mono({
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
         <body
           className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
         >
+          {publishableKey && <ProfileSync />}
           <Header clerkEnabled={Boolean(publishableKey)} />
           <ServiceWorkerRegistration />
 

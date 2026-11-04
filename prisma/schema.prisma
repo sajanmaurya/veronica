@@ -20,8 +20,10 @@ model UserProfile {
   email           String
   diseases        String?
   allergies       String?
+  dietaryPreferences String?
   createdAt       DateTime        @default(now())
   
+  consumptions    FoodConsumption[]
   productSearches ProductSearch[] // <-- add this back-relation array field
 }
 
@@ -32,8 +34,28 @@ model ProductSearch {
   imageFrontUrl      String?
   imageNutritionImage String?
   aiData             Json
+  clientRequestId    String?     @unique
   createdAt          DateTime     @default(now())
 
   userProfile        UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
+
+model FoodConsumption {
+  id          String      @id @default(cuid())
+  userId      String
+  productName String
+  portion     Float
+  unit        String
+  nutrition   Json
+  consumedAt  DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  userProfile UserProfile @relation(fields:[userId], references:[userId], onDelete:Cascade)
+  @@index([userId,consumedAt])
+}
+
+model ApiUsage {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+}
