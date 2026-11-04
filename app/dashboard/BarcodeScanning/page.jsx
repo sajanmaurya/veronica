@@ -1,3 +1,4 @@
+import {prepareFoodImage} from "@/lib/imageCompression";
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -431,7 +432,7 @@ const BarcodeScanning = () => {
     setFallbackLoading(true);
     try {
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", await prepareFoodImage(file));
       formData.append(
         "profile",
         JSON.stringify({
@@ -473,7 +474,7 @@ const BarcodeScanning = () => {
 
     try {
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", await prepareFoodImage(file));
       formData.append(
         "profile",
         JSON.stringify({

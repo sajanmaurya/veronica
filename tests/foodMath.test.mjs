@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {finiteValue,normalizePer100,scaleConsumption,scoreEvidence} from "../lib/foodMath.mjs";
+test("missing is not zero",()=>{assert.equal(finiteValue(null),null);assert.equal(finiteValue(""),null);assert.equal(finiteValue("unavailable"),null)});
+test("normalizes 25 g serving",()=>{const n=normalizePer100({label_basis:"per_serving",serving_size:"25 g",calories:100,sodium_mg:50});assert.equal(n.basis,"per_100g");assert.equal(n.values.calories,400);assert.equal(n.values.sodium_mg,200);assert.equal(n.values.total_sugar_g,null)});
+test("servings in ml compare per 100 ml",()=>{const n=normalizePer100({label_basis:"per_serving",serving_size:"250 ml",total_sugar_g:20});assert.equal(n.basis,"per_100ml");assert.equal(n.values.total_sugar_g,8)});
+test("unknown serving size cannot be compared",()=>assert.equal(normalizePer100({label_basis:"per_serving",calories:100}),null));
+test("consumption scales only when portion recorded",()=>{const n=scaleConsumption({label_basis:"per_100g",calories:400,protein_g:12},50,"g");assert.equal(n.calories,200);assert.equal(n.protein_g,6);assert.equal(scaleConsumption({label_basis:"per_100g",calories:400,protein_g:12},2,"servings"),null)});
+test("reject impossible portions",()=>assert.equal(scaleConsumption({label_basis:"per_100g",calories:400,protein_g:12},-1,"g"),null));
+test("sugar evidence flags high",()=>{const e=scoreEvidence({label_basis:"per_100g",total_sugar_g:28,sodium_mg:100});assert.equal(e.find(x=>x.label==="Total sugar").flag,"high");assert.equal(e.find(x=>x.label==="Sodium").flag,"low")});

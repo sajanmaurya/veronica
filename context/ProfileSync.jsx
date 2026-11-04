@@ -7,6 +7,7 @@ export default function ProfileSync(){
   const {setProfile,setLoading}=useUserProfile();
   useEffect(()=>{
     if(!isLoaded)return;
+    try{localStorage.removeItem("veronica-profile")}catch{}
     let active=true;
     if(!user){setProfile(emptyProfile);setLoading(false);return;}
     setLoading(true);

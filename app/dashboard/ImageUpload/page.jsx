@@ -1,3 +1,4 @@
+import {prepareFoodImage} from "@/lib/imageCompression";
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -270,7 +271,7 @@ const ImageUpload = () => {
 
     try {
       const formData = new FormData();
-      formData.append("image", image);
+      formData.append("image", await prepareFoodImage(image));
       formData.append(
         "profile",
         JSON.stringify({

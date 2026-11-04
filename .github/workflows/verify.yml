@@ -1,0 +1,21 @@
+name: Verify Veronica
+on:
+  push:
+    branches: [feature/security-reliability-food-intelligence]
+  pull_request:
+    branches: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/veronica
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npm test
+      - run: npx next build
