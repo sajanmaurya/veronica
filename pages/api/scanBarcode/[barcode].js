@@ -1,13 +1,14 @@
 // export default async function handler(req, res) {
 //   const { barcode } = req.query;
 
-//   if (!barcode) {
+//   if (typeof barcode !== "string" || !/^\d{8,14}$/.test(barcode)) {
 //     return res.status(400).json({ error: "Barcode is required" });
 //   }
 
 //   try {
 //     const response = await fetch(
-//       `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+//       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
+      { signal: AbortSignal.timeout(9000), headers: {"User-Agent":"Veronica/1.0 (food barcode lookup)"} }
 //     );
 
 //     if (!response.ok) {
@@ -111,7 +112,7 @@ export default async function handler(req, res) {
 
     if (data.status === 1 && data.product) {
       const cleanedData = cleanFoodData(data.product);
-      console.log("Cleaned API Response:", JSON.stringify(cleanedData));
+      // Avoid logging full nutrition/product data.
       res.status(200).json({ success: true, data: cleanedData });
     } else {
       res.status(404).json({ success: false, error: "Product not found" });

@@ -1,3 +1,4 @@
+import { requireUser, limitUsage, getTrustedProfile } from "@/lib/apiAuth";
 import {
   enrichProductFromWeb,
   needsWebEnrichment,
@@ -185,6 +186,8 @@ export default async function handler(req, res) {
       .json({ success: false, message: "Method not allowed." });
   }
 
+  const userId=requireUser(req,res);if(!userId)return;
+  if(!(await limitUsage(userId,"barcode-ai",30,res)))return;
   const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
@@ -195,7 +198,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { product, profile } = req.body || {};
+    const { product } = req.body || {};
+    const profile=await getTrustedProfile(userId);
 
     if (!product) {
       return res.status(400).json({
@@ -377,9 +381,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({
       success: false,
-      message:
-        error?.message ||
-        "Unable to analyze the scanned product right now.",
+      message: "Unable to analyze the scanned product right now.",
     });
   }
 }

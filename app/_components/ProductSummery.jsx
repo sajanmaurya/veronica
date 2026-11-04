@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
 
@@ -178,6 +178,7 @@ export default function ProductSummary({
   imageNutritionImage,
 }) {
   const { user } = useUser();
+  const saveRequestIds=useRef(new WeakMap());
   const { profile } = useUserProfile();
 
   const [error, setError] = useState(null);
@@ -228,6 +229,8 @@ export default function ProductSummary({
 
     async function saveSearch() {
       if (!user || !aiData) return;
+      let requestId=saveRequestIds.current.get(aiData);
+      if(!requestId){requestId=crypto.randomUUID();saveRequestIds.current.set(aiData,requestId)}
 
       try {
         const frontImageData = await makePermanentImageData(imageFrontUrl);
@@ -246,6 +249,7 @@ export default function ProductSummary({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            clientRequestId: requestId,
             productName: productName || aiData.product_name || "Unknown product",
             imageFrontUrl: permanentFrontUrl,
             imageNutritionImage: permanentNutritionUrl,

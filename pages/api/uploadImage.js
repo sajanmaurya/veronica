@@ -1,3 +1,4 @@
+import { requireUser, limitUsage } from "@/lib/apiAuth";
 import fs from "fs";
 import formidable from "formidable";
 import { createWorker } from "tesseract.js";
@@ -13,10 +14,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const userId=requireUser(req,res);if(!userId)return;
+  if(!(await limitUsage(userId,"ocr",20,res)))return;
   try {
     const form = formidable({
       multiples: false,
-      maxFileSize: 10 * 1024 * 1024,
+      maxFileSize: 4 * 1024 * 1024,
       filter: ({ mimetype }) => !!mimetype && mimetype.startsWith("image/"),
     });
 

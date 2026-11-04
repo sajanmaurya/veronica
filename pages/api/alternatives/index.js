@@ -1,3 +1,4 @@
+import { requireUser, limitUsage, getTrustedProfile } from "@/lib/apiAuth";
 const OFF_BASE_URL = "https://world.openfoodfacts.org";
 const OFF_USER_AGENT = "Veronica/1.0 (healthy alternatives; https://veronica-steel.vercel.app)";
 
@@ -26,7 +27,7 @@ function currentPer100g(product) {
   if (direct && typeof direct === "object") {
     return {
       sugar: finite(direct.sugars ?? direct.sugar),
-      sodium: finite(direct.sodium),
+      sodium: direct.sodium_mg != null ? finite(direct.sodium_mg) : (finite(direct.sodium) == null ? null : finite(direct.sodium) * 1000),
       saturatedFat: finite(direct.saturated_fat),
       transFat: finite(direct.trans_fat),
       calories: finite(direct.energy_kcal ?? direct["energy-kcal"]),
@@ -109,7 +110,7 @@ function normalizedCandidate(product) {
     allergens: [...(Array.isArray(product?.allergens_tags) ? product.allergens_tags : []), ...(Array.isArray(product?.traces_tags) ? product.traces_tags : [])].join(" "),
     nutrients: {
       sugar: finite(nutrients.sugars_100g),
-      sodium: finite(nutrients.sodium_100g),
+      sodium: finite(nutrients.sodium_100g) == null ? null : finite(nutrients.sodium_100g) * 1000,
       saturatedFat: finite(nutrients["saturated-fat_100g"]),
       transFat: finite(nutrients["trans-fat_100g"]),
       calories: finite(nutrients["energy-kcal_100g"]),
@@ -175,9 +176,13 @@ function scoreCandidate(current, candidate, bucket) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
+  const userId=requireUser(req,res);if(!userId)return;
+  if(!(await limitUsage(userId,"alternatives",60,res)))return;
   try {
-    const { product, profile } = req.body || {};
+    const { product } = req.body || {};
+    const profile=await getTrustedProfile(userId);
     if (!product) return res.status(400).json({ success: false, message: "Product data is required." });
+    if (product.nutrition_source === "unavailable") return res.status(200).json({success:true,data:{alternatives:[],message:"Nutrition must be verified first."}});
     const current = currentPer100g(product);
     if (!current) return res.status(200).json({ success: true, data: { alternatives: [], message: "Not enough nutrition information is available to compare alternatives reliably." } });
     const category = normalizeCategoryTag(categoryTag(product));
