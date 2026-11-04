@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         Key: key,
         Body: buffer,
         ContentType: contentType,
-        CacheControl: "public, max-age=31536000, immutable",
+        CacheControl: "private, max-age=300",
       })
     );
 

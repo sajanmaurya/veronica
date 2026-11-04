@@ -375,7 +375,7 @@ export default async function handler(req, res) {
           ingredientSource === "unavailable" ||
           nutritionSource === "unavailable" ||
           quantitySource === "unavailable" ||
-          offValidation.status === "needs_verification",
+          (offValidation.status === "needs_verification" && nutritionSource !== "web_verified"),
       },
     });
   } catch (error) {

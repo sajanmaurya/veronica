@@ -22,7 +22,7 @@ export default function ConsumptionPage(){
   return <main className="app-canvas min-h-screen px-4 py-8 sm:px-8">
     <div className="mx-auto max-w-5xl space-y-5">
       <section className="glass-panel space-y-2 p-6">
-        <p className="text-xs font-bold uppercase tracking-widest text-emerald-700">Verified portions only</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-emerald-700">Manually recorded portions</p>
         <h1 className="text-3xl font-semibold text-slate-900">My food log</h1>
         <p className="text-sm text-slate-600">Only products you explicitly mark as eaten appear here. Values are estimates from packaging, not medical measurements.</p>
         <Link href="/dashboard/BarcodeScanning" className="inline-flex rounded-xl border border-emerald-400 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800">Scan food to add a meal</Link>

@@ -110,10 +110,10 @@ function normalizeNutrition(nutrition) {
       .filter((key) => result[key] != null)
       .every((key) => Number(result[key]) <= servingGrams * 1.05);
 
-  const status =
-    caloriesConsistent && servingPhysicallyPlausible
-      ? "verified"
-      : "needs_verification";
+  const numericCount = ["calories","total_fat_g","carbohydrates_g","total_sugar_g","protein_g","sodium_mg"]
+    .filter(key => result[key] != null && Number.isFinite(Number(result[key]))).length;
+  const status = numericCount >= 3 && caloriesConsistent && servingPhysicallyPlausible
+      ? "verified" : "needs_verification";
 
   let message = "Nutrition values passed basic consistency checks.";
 
@@ -547,12 +547,11 @@ Return data matching the supplied JSON schema.
       Array.isArray(data.ingredients) && data.ingredients.length
         ? "package_scan"
         : "unavailable";
-    data.nutrition_source =
-      Object.values(data.nutrition || {}).some(
-        (value) => value != null && value !== "unknown"
-      )
-        ? "package_scan"
-        : "unavailable";
+    const numericNutrients = ["calories","total_fat_g","carbohydrates_g","total_sugar_g","protein_g","sodium_mg"]
+      .filter(key => data.nutrition?.[key] != null && Number.isFinite(Number(data.nutrition[key]))).length;
+    data.nutrition_source = numericNutrients >= 3 ? "package_scan" : "unavailable";
+    data.rating_verified = data.nutrition_source !== "unavailable" && normalized.validation.status === "verified";
+    if(!data.rating_verified) data.rating = null;
     data.data_sources = {
       ingredients: data.ingredients_source,
       nutrition: data.nutrition_source,
@@ -564,6 +563,7 @@ Return data matching the supplied JSON schema.
     data.verification_required =
       data.ingredients_source === "unavailable" ||
       data.nutrition_source === "unavailable" ||
+      normalized.validation.status !== "verified" ||
       !data.package_quantity;
 
     return res.status(200).json({
