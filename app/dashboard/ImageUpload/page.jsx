@@ -1,4 +1,5 @@
 "use client";
+import {prepareFoodImage} from "@/lib/imageCompression";
 
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
@@ -270,7 +271,7 @@ const ImageUpload = () => {
 
     try {
       const formData = new FormData();
-      formData.append("image", image);
+      formData.append("image", await prepareFoodImage(image));
       formData.append(
         "profile",
         JSON.stringify({

@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "node --test tests/*.test.mjs",
+    "db:migrate": "prisma migrate deploy",
+    "db:status": "prisma migrate status"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.901.0",
     "@clerk/nextjs": "^6.18.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -17,7 +21,8 @@
     "@mui/icons-material": "^6.4.8",
     "@mui/material": "^6.4.8",
     "@prisma/client": "^6.7.0",
-    "@aws-sdk/client-s3": "^3.901.0",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.21.3",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
@@ -37,7 +42,6 @@
     "tailwind": "^4.0.0",
     "tailwindcss": "^3.4.1",
     "tesseract.js": "^6.0.0",
-    "@zxing/browser": "^0.2.1",
     "ts-custom-error": "^3.3.1"
   },
   "devDependencies": {

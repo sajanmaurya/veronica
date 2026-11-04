@@ -1,3 +1,4 @@
+import { requireUser, limitUsage } from "@/lib/apiAuth";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 
@@ -63,7 +64,7 @@ function parseImageData(imageData) {
   const contentType = match[1];
   const base64 = match[2];
 
-  if (!contentType.startsWith("image/")) {
+  if (!["image/jpeg","image/png","image/webp"].includes(contentType)) {
     throw new Error("Only image uploads are allowed.");
   }
 
@@ -91,6 +92,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const userId=requireUser(req,res);if(!userId)return;
+  if(!(await limitUsage(userId,"history-image",40,res)))return;
   try {
     const { imageData, folder = "history" } = req.body || {};
 
@@ -104,7 +107,7 @@ export default async function handler(req, res) {
       String(folder).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32) ||
       "history";
     const extension = contentType === "image/webp" ? "webp" : "img";
-    const key = `${safeFolder}/${randomUUID()}.${extension}`;
+    const key = `${safeFolder}/${userId.replace(/[^a-zA-Z0-9_-]/g,"")}/${randomUUID()}.${extension}`;
 
     const client = createStorageClient();
 
@@ -114,27 +117,17 @@ export default async function handler(req, res) {
         Key: key,
         Body: buffer,
         ContentType: contentType,
-        CacheControl: "public, max-age=31536000, immutable",
+        CacheControl: "private, max-age=300",
       })
     );
 
     return res.status(201).json({
-      url: publicObjectUrl(endpoint, bucket, key),
+      url: `/api/storage/image?key=${encodeURIComponent(key)}`,
       key,
     });
   } catch (error) {
     console.error("Failed to upload image to Neon Object Storage:", error);
 
-    const details = {
-      name: error?.name || "UnknownError",
-      message: error?.message || "Unknown storage error",
-      code: error?.code || null,
-      httpStatusCode: error?.$metadata?.httpStatusCode || null,
-    };
-
-    return res.status(500).json({
-      error: "Failed to upload image",
-      details,
-    });
+    return res.status(500).json({error:"Failed to upload image"});
   }
 }
