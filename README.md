@@ -29,7 +29,8 @@ React UI -> Next.js API routes -> Open Food Facts / Groq / PostgreSQL via Prisma
 - `npm test`: nutrition-unit and portion-math tests.
 - `npx prisma validate`: schema verification.
 - `npx next build`: production compile without DB migration.
-- `npm run build`: applies migrations and builds the app. Test migrations in staging first.
+- `npm run build` compiles without applying database migrations.
+- `npm run db:migrate` applies schema changes only when you explicitly run it, after backing up and testing in staging.
 
 ## Pre-release checklist
 - Run GitHub Actions and confirm a clean build.
