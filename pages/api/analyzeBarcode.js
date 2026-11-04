@@ -1,9 +1,9 @@
-import { requireUser, limitUsage, getTrustedProfile } from "@/lib/apiAuth";
 import {
   enrichProductFromWeb,
   needsWebEnrichment,
 } from "@/lib/productWebEnrichment";
 import { validateBarcodeNutrition } from "@/lib/nutritionValidation";
+import { scoreEvidence } from "@/lib/foodMath.mjs";
 
 const MODEL_NAME = "qwen/qwen3.8-27b";
 
@@ -186,8 +186,6 @@ export default async function handler(req, res) {
       .json({ success: false, message: "Method not allowed." });
   }
 
-  const userId=requireUser(req,res);if(!userId)return;
-  if(!(await limitUsage(userId,"barcode-ai",30,res)))return;
   const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
@@ -198,8 +196,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { product } = req.body || {};
-    const profile=await getTrustedProfile(userId);
+    const { product, profile } = req.body || {};
 
     if (!product) {
       return res.status(400).json({
@@ -311,6 +308,7 @@ export default async function handler(req, res) {
       success: true,
       data: {
         ...data,
+        score_evidence: scoreEvidence(effectiveNutrition),
         product_category:
           product.categories ||
           product.pnns_groups_2 ||
@@ -381,7 +379,9 @@ export default async function handler(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to analyze the scanned product right now.",
+      message:
+        error?.message ||
+        "Unable to analyze the scanned product right now.",
     });
   }
 }
