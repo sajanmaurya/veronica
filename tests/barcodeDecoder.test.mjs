@@ -38,10 +38,15 @@ test('ZXing decodes an EAN-13 grocery barcode using the scanner format hints', (
 
   const hints = new Map([
     [DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E]],
-    [DecodeHintType.TRY_HARDER, true],
   ]);
   const reader = new MultiFormatReader();
   reader.setHints(hints);
   const bitmap = new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(luminance, width, height)));
+  // The initial, fast pass must work for clear retail barcodes.
+  assert.equal(reader.decodeWithState(bitmap).getText(), barcode);
+
+  // After a short timeout the scanner enables the more thorough pass.
+  hints.set(DecodeHintType.TRY_HARDER, true);
+  reader.setHints(hints);
   assert.equal(reader.decodeWithState(bitmap).getText(), barcode);
 });

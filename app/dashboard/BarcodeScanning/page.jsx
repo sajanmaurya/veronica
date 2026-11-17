@@ -17,7 +17,8 @@ import { sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
 const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
 const BARCODE_CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
-const SCAN_SUCCESS_ANIMATION_MS = 650;
+const SCAN_SUCCESS_ANIMATION_MS = 350;
+const SCAN_THOROUGH_MODE_DELAY_MS = 1000;
 
 function openBarcodeCache() {
   return new Promise((resolve, reject) => {
@@ -84,6 +85,7 @@ const BarcodeScanning = () => {
   const streamRef = useRef(null);
   const videoRef = useRef(null);
   const detectionTimerRef = useRef(null);
+  const thoroughModeTimerRef = useRef(null);
 
   const { profile } = useUserProfile();
 
@@ -91,6 +93,8 @@ const BarcodeScanning = () => {
     // Invalidate camera requests that have not finished yet (permission dialogs,
     // device startup, etc.), so an old request cannot restart a stopped scan.
     scanGeneration.current += 1;
+    if (thoroughModeTimerRef.current) window.clearTimeout(thoroughModeTimerRef.current);
+    thoroughModeTimerRef.current = null;
     try { controlsRef.current?.stop?.(); } catch {}
     controlsRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -170,18 +174,17 @@ const BarcodeScanning = () => {
         BarcodeFormat.UPC_A,
         BarcodeFormat.UPC_E,
       ]);
-      hints.set(DecodeHintType.TRY_HARDER, true);
 
       const reader = new BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 250,
-        delayBetweenScanSuccess: 250,
+        delayBetweenScanAttempts: 120,
+        delayBetweenScanSuccess: 120,
       });
       // Let ZXing attach/play the stream and own its decoder cleanup.
       const controls = await reader.decodeFromStream(
         stream, video,
         (result, error, controls) => {
           if (generation !== scanGeneration.current) return;
-          if (result && !scanLocked.current) {
+          if (result && !scanLocked.current && !detectionTimerRef.current) {
             const value = String(result.getText?.() || "").trim();
             if (value) handleScan(value, true);
           } else if (
@@ -201,13 +204,22 @@ const BarcodeScanning = () => {
         }
       );
 
-      if (generation !== scanGeneration.current || scanLocked.current) {
+      if (generation !== scanGeneration.current || (scanLocked.current && !detectionTimerRef.current)) {
         controls.stop();
         return;
       }
       controlsRef.current = controls;
 
       setCameraReady(true);
+
+      // Start with ZXing's normal, faster 1D pass. Only spend extra CPU on
+      // TRY_HARDER if the barcode has not been recognized after a short wait.
+      thoroughModeTimerRef.current = window.setTimeout(() => {
+        thoroughModeTimerRef.current = null;
+        if (generation !== scanGeneration.current || scanLocked.current || detectionTimerRef.current) return;
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        reader.setHints(hints);
+      }, SCAN_THOROUGH_MODE_DELAY_MS);
 
       // Enumerating camera lenses must never delay or prevent decoding.
       // After permission is granted, labels let users change to a main rear
@@ -265,8 +277,9 @@ const BarcodeScanning = () => {
     scanLocked.current = true;
     setData(cleanBarcode);
     if (fromCamera) {
-      // Keep the camera preview visible briefly so the detection feels real.
-      // The lock prevents the decoder from submitting the same code again.
+      // Keep the preview visible for a short confirmation, while the product
+      // request starts immediately in parallel. Never make the network wait
+      // for the animation to finish.
       setBarcodeDetected(true);
       setLoading(true);
       detectionTimerRef.current = window.setTimeout(() => {
@@ -274,8 +287,8 @@ const BarcodeScanning = () => {
         stopScanner();
         setScanning(false);
         setBarcodeDetected(false);
-        getResult(cleanBarcode);
       }, SCAN_SUCCESS_ANIMATION_MS);
+      getResult(cleanBarcode);
     } else {
       stopScanner();
       setScanning(false);
@@ -325,7 +338,8 @@ const BarcodeScanning = () => {
         return;
       }
 
-      await cacheBarcode(cleanBarcode, response.data);
+      // Offline caching is best-effort; do not hold up the product result.
+      void cacheBarcode(cleanBarcode, response.data);
 
       toast.success("Product Found");
 
