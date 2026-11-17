@@ -715,8 +715,9 @@ export default function ProductSummary({
                     Alternatives
                   </p>
                   <h2 className="mt-1 text-base font-semibold text-slate-950">
-                    Better options
+                    Options to compare
                   </h2>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Per-100 g nutrient comparisons, not an overall health ranking. Verify the product labels.</p>
                 </div>
                 {alternativesLoading && (
                   <span className="text-[10px] text-slate-400">Loading…</span>

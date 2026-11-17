@@ -14,7 +14,16 @@ const CATEGORY_WEIGHTS = {
   default: { sugar: 0.2, sodium: 0.2, saturatedFat: 0.2, calories: 0.15, fiber: 0.15, protein: 0.1 },
 };
 
-function finite(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }
+function finite(value) {
+  if (value == null || typeof value === "boolean" ||
+      (typeof value === "string" && !value.trim())) return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+function sodiumMilligramsFromGrams(value) {
+  const grams = finite(value);
+  return grams == null ? null : grams * 1000;
+}
 
 function parseServingGrams(value) {
   const match = String(value || "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(g|gram|grams)\b/i);
@@ -26,7 +35,7 @@ function currentPer100g(product) {
   if (direct && typeof direct === "object") {
     return {
       sugar: finite(direct.sugars ?? direct.sugar),
-      sodium: finite(direct.sodium),
+      sodium: finite(direct.sodium_mg) ?? sodiumMilligramsFromGrams(direct.sodium),
       saturatedFat: finite(direct.saturated_fat),
       transFat: finite(direct.trans_fat),
       calories: finite(direct.energy_kcal ?? direct["energy-kcal"]),
@@ -109,7 +118,7 @@ function normalizedCandidate(product) {
     allergens: [...(Array.isArray(product?.allergens_tags) ? product.allergens_tags : []), ...(Array.isArray(product?.traces_tags) ? product.traces_tags : [])].join(" "),
     nutrients: {
       sugar: finite(nutrients.sugars_100g),
-      sodium: finite(nutrients.sodium_100g),
+      sodium: sodiumMilligramsFromGrams(nutrients.sodium_100g),
       saturatedFat: finite(nutrients["saturated-fat_100g"]),
       transFat: finite(nutrients["trans-fat_100g"]),
       calories: finite(nutrients["energy-kcal_100g"]),
