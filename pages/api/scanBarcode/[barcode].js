@@ -84,7 +84,7 @@ const cleanFoodData = (product) => ({
     ? product.data_quality_warnings_tags.join(", ")
     : "Unknown",
 
-  rating: "To be calculated by AI",
+  rating: null,
 });
 
 export default async function handler(req, res) {
