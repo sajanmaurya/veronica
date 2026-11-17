@@ -178,7 +178,8 @@ export default async function handler(req, res) {
   const apiKey = process.env.GROQ_API_KEY;
 
   try {
-    const { product, profile } = req.body || {};
+    const { product, profile, quick } = req.body || {};
+    const quickResponse = quick === true;
 
     if (!product) {
       return res.status(400).json({
@@ -191,7 +192,7 @@ export default async function handler(req, res) {
     const offValidation = validateBarcodeNutrition(product);
     let webEnrichment = null;
 
-    if (apiKey && (enrichmentNeed.required || offValidation.requires_fallback)) {
+    if (!quickResponse && apiKey && (enrichmentNeed.required || offValidation.requires_fallback)) {
       try {
         webEnrichment = await enrichProductFromWeb(product, apiKey);
       } catch (error) {
@@ -249,8 +250,10 @@ export default async function handler(req, res) {
       },
     };
 
-    let data = { summary: "Product nutrition is shown below. AI explanation is unavailable.", harmful_ingredients: [], ingredient_explanations: [], user_specific_summary: "" };
-    if (apiKey) {
+    let data = { summary: quickResponse && apiKey
+      ? "Nutrition facts and the calculated grade are ready. Additional ingredient insights are loading."
+      : "Product nutrition is shown below. AI explanation is unavailable.", harmful_ingredients: [], ingredient_explanations: [], user_specific_summary: "" };
+    if (!quickResponse && apiKey) {
       try { data = await analyzeWithGroq(apiKey, effectiveProduct, profile); }
       catch (error) { console.warn("Optional product explanation unavailable:", error?.message); }
     }
@@ -281,6 +284,8 @@ export default async function handler(req, res) {
       success: true,
       data: {
         ...data,
+        barcode: product.barcode || null,
+        analysis_pending: quickResponse && Boolean(apiKey),
         product_category:
           product.categories ||
           product.pnns_groups_2 ||

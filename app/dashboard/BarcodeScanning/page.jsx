@@ -89,6 +89,7 @@ const BarcodeScanning = () => {
   const detectionTimerRef = useRef(null);
   const thoroughModeTimerRef = useRef(null);
   const nativeScanTimerRef = useRef(null);
+  const analysisRequestRef = useRef(0);
 
   const { profile } = useUserProfile();
   const preferredCameraId = getPreferredBarcodeCamera(availableCameras)?.deviceId || "";
@@ -371,6 +372,7 @@ const BarcodeScanning = () => {
       return;
     }
 
+    const requestId = ++analysisRequestRef.current;
     try {
       setLoading(true);
 
@@ -393,6 +395,8 @@ const BarcodeScanning = () => {
           throw new Error(response.error || "The food database is temporarily unavailable. Please try again.");
         }
       }
+
+      if (requestId !== analysisRequestRef.current) return;
 
       console.log("Barcode API Response:", response);
 
@@ -419,17 +423,10 @@ const BarcodeScanning = () => {
       setImageNutritionImage(nutritionImage);
       setProductName(name);
 
-      console.log(
-        "Cleaned Product Data:",
-        JSON.stringify(product)
-      );
-
-      // Analyze the product with Groq
+      // Show verified barcode nutrition first; extra research never blocks it.
       await analyzeProduct(
-        JSON.stringify(product),
-        name,
-        frontImage,
-        nutritionImage
+        product,
+        requestId
       );
 
     } catch (error) {
@@ -442,61 +439,72 @@ const BarcodeScanning = () => {
   };
 
   // =====================================================
-  // GEMINI AI ANALYSIS
+  // Fast deterministic analysis, followed by optional background enrichment.
   // =====================================================
 
-  const analyzeProduct = async (
-    productData,
-    currentProductName,
-    currentImageFrontUrl,
-    currentImageNutritionImage
-  ) => {
+  const analyzeProduct = async (product, requestId) => {
     try {
       setLoading(true);
+
+      const requestProfile = {
+        diseases: profile?.diseases || "",
+        allergies: profile?.allergies || "",
+        dietaryPreferences: profile?.dietaryPreferences || "",
+      };
 
       const response = await fetch("/api/analyzeBarcode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product: JSON.parse(productData),
-          profile: {
-            diseases: profile?.diseases || "",
-            allergies: profile?.allergies || "",
-            dietaryPreferences: profile?.dietaryPreferences || "",
-          },
+          product,
+          profile: requestProfile,
+          quick: true,
         }),
       });
 
       const result = await response.json();
+
+      if (requestId !== analysisRequestRef.current) return;
 
       if (!response.ok || !result.success || !result.data) {
         throw new Error(result.message || "Barcode product analysis failed.");
       }
 
       setAiData(result.data);
+      toast.success("Nutrition result ready!");
 
-      try {
-        const saveResponse = await fetch("/api/previousSearches/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productName: currentProductName || "Unknown Product",
-            imageFrontUrl: currentImageFrontUrl || null,
-            imageNutritionImage: currentImageNutritionImage || null,
-            aiData: result.data,
-          }),
-        });
-
-        if (saveResponse.status !== 401 && !saveResponse.ok) {
-          console.error("Failed to save previous search:", await saveResponse.json());
-        }
-      } catch (saveError) {
-        console.error("Error saving previous search:", saveError);
+      if (result.data.analysis_pending) {
+        // Do not await optional AI/web research. The nutrition result is already
+        // on screen; only explanatory text and verified enrichment may change.
+        void (async () => {
+          try {
+            const detailResponse = await fetch("/api/analyzeBarcode", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ product, profile: requestProfile }),
+              signal: AbortSignal.timeout(30000),
+            });
+            if (!detailResponse.ok) throw new Error("Detailed analysis unavailable");
+            const detailResult = await detailResponse.json();
+            if (!detailResult.success || !detailResult.data) throw new Error("Detailed analysis unavailable");
+            if (requestId === analysisRequestRef.current) {
+              setAiData({ ...detailResult.data, analysis_pending: false });
+            }
+          } catch (error) {
+            console.warn("Optional barcode insights could not finish:", error);
+            if (requestId === analysisRequestRef.current) {
+              setAiData((current) => current ? {
+                ...current,
+                analysis_pending: false,
+                summary: "Nutrition facts and grade are ready. Extra ingredient insights are unavailable right now.",
+              } : current);
+            }
+          }
+        })();
       }
-
-      toast.success("Product analysis completed!");
     } catch (error) {
       console.error("Error analyzing barcode product:", error);
+      if (requestId === analysisRequestRef.current) scanLocked.current = false;
       toast.error(error?.message || "Something went wrong while analyzing the product.");
     } finally {
       setLoading(false);
@@ -510,6 +518,8 @@ const BarcodeScanning = () => {
   const handleVisionFallback = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    analysisRequestRef.current += 1;
 
     setFallbackLoading(true);
     try {
@@ -551,6 +561,10 @@ const BarcodeScanning = () => {
   const handleVerifyPackage = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // A verified package photo must never be overwritten by delayed web data.
+    analysisRequestRef.current += 1;
+    setAiData((current) => current ? { ...current, analysis_pending: false } : current);
 
     setVerifyLoading(true);
 
@@ -663,6 +677,7 @@ const BarcodeScanning = () => {
   };
 
   const resetScan = () => {
+    analysisRequestRef.current += 1;
     if (detectionTimerRef.current) window.clearTimeout(detectionTimerRef.current);
     detectionTimerRef.current = null;
     scanLocked.current = false;

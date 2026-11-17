@@ -2,7 +2,7 @@
 
 import NutritionGrade from "./NutritionGrade";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
 import { formatNutritionValue, nutritionBasisLabel, usableProductImage } from "@/lib/nutritionDisplay.mjs";
@@ -30,6 +30,7 @@ function ProductThumbnail({ imageUrl }) {
 
 async function makePermanentImageData(sourceUrl) {
   if (!sourceUrl) return null;
+  if (sourceUrl.startsWith("https://")) return sourceUrl;
   if (sourceUrl.startsWith("data:")) return sourceUrl;
   if (!sourceUrl.startsWith("blob:")) return null;
 
@@ -208,12 +209,17 @@ export default function ProductSummary({
   const [error, setError] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
   const [alternativesLoading, setAlternativesLoading] = useState(false);
+  const historySaveRef = useRef(null);
+  const historyUpdateQueueRef = useRef(Promise.resolve());
+  const lastSavedAnalysisRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadAlternatives() {
-      if (!aiData) return;
+      // Recommendations are optional; wait until the background enrichment is
+      // done so the same product does not trigger duplicate external searches.
+      if (!aiData || aiData.analysis_pending) return;
       setAlternativesLoading(true);
 
       try {
@@ -249,25 +255,21 @@ export default function ProductSummary({
   }, [aiData, profile?.allergies, profile?.dietaryPreferences]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!user || !aiData) return;
 
-    async function saveSearch() {
-      if (!user || !aiData) return;
-
-      try {
-        const frontImageData = await makePermanentImageData(imageFrontUrl);
-        const nutritionImageData = await makePermanentImageData(imageNutritionImage);
-
-        if (cancelled) return;
-
+    if (!historySaveRef.current) {
+      // Save the first nutrition result promptly, even if the user leaves
+      // before optional AI research finishes. A later update reuses this row.
+      historySaveRef.current = (async () => {
+        const [frontImageData, nutritionImageData] = await Promise.all([
+          makePermanentImageData(imageFrontUrl),
+          makePermanentImageData(imageNutritionImage),
+        ]);
         const [permanentFrontUrl, permanentNutritionUrl] = await Promise.all([
           uploadHistoryImage(frontImageData, "history-front"),
           uploadHistoryImage(nutritionImageData, "history-label"),
         ]);
-
-        if (cancelled) return;
-
-        const res = await fetch("/api/previousSearches/products", {
+        const response = await fetch("/api/previousSearches/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -277,19 +279,28 @@ export default function ProductSummary({
             aiData,
           }),
         });
-
-        if (!res.ok) throw new Error("Failed to save search");
-        if (!cancelled) setError(null);
-      } catch (err) {
-        if (!cancelled) setError(err?.message || "Failed to save search");
-      }
+        if (response.status === 401) return null;
+        if (!response.ok) throw new Error("Failed to save search");
+        return (await response.json()).id;
+      })().catch((err) => {
+        setError(err?.message || "Failed to save search");
+        return null;
+      });
+    } else if (!aiData.analysis_pending && lastSavedAnalysisRef.current !== aiData) {
+      // Enrichment and later package verification update the existing history
+      // record instead of creating duplicate scans.
+      lastSavedAnalysisRef.current = aiData;
+      historyUpdateQueueRef.current = historyUpdateQueueRef.current.then(async () => {
+        const id = await historySaveRef.current;
+        if (!id) return;
+        const response = await fetch("/api/previousSearches/products", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, aiData }),
+        });
+        if (!response.ok) throw new Error("Failed to update saved analysis");
+      }).catch((err) => setError(err?.message || "Failed to update saved analysis"));
     }
-
-    saveSearch();
-
-    return () => {
-      cancelled = true;
-    };
   }, [aiData, imageFrontUrl, imageNutritionImage, productName, user]);
 
   const visibleIngredients = useMemo(
@@ -399,6 +410,12 @@ export default function ProductSummary({
                 Ingredients: {sourceLabel(aiData.ingredients_source)}
               </span>
             </div>
+
+            {aiData.analysis_pending && (
+              <p role="status" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800">
+                Nutrition result is ready. Adding ingredient insights in the background…
+              </p>
+            )}
 
             <NutritionGrade score={score} />
 

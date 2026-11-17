@@ -39,3 +39,24 @@ test('Real barcode handler returns deterministic grade with no AI key',async()=>
   assert.equal(status,200);assert.equal(body.data.nutrition_score.grade,'E');assert.equal(body.data.rating,null);
  } finally { if(original===undefined)delete process.env.GROQ_API_KEY;else process.env.GROQ_API_KEY=original; }
 });
+
+test('Quick barcode analysis returns a grade without calling optional AI or web research',async()=>{
+ const originalKey=process.env.GROQ_API_KEY;
+ const originalFetch=globalThis.fetch;
+ process.env.GROQ_API_KEY='test-key';
+ try {
+  const handler=await loadBarcodeHandler(); let status,body;
+  globalThis.fetch=async()=>{throw Error('Quick barcode analysis must not use external APIs')};
+  const res={status(code){status=code;return this;},json(value){body=value;return this;}};
+  await handler({method:'POST',body:{quick:true,product:{...product,barcode:'9300605155459',ingredients:'Unknown',quantity:'Unknown',nutrients_per_100g:{'energy-kcal':543,fat:31.4,'saturated-fat':21.5,carbohydrates:58.5,sugars:55.3,proteins:7.6,sodium:0.125}}}},res);
+  assert.equal(status,200);
+  assert.equal(body.data.nutrition_score.grade,'E');
+  assert.equal(body.data.rating,null);
+  assert.equal(body.data.analysis_pending,true);
+  assert.equal(body.data.barcode,'9300605155459');
+ }finally{
+  globalThis.fetch=originalFetch;
+  if(originalKey===undefined)delete process.env.GROQ_API_KEY;
+  else process.env.GROQ_API_KEY=originalKey;
+ }
+});
