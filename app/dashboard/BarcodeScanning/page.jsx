@@ -2,10 +2,17 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import {
+  BarcodeFormat,
+  ChecksumException,
+  DecodeHintType,
+  FormatException,
+  NotFoundException,
+} from "@zxing/library";
 import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
+import { sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
 
 const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
@@ -67,165 +74,89 @@ const BarcodeScanning = () => {
   const [aiData, setAiData] = useState(null);
   const [cameraError, setCameraError] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState("");
   const scanLocked = useRef(false);
-  const readerRef = useRef(null);
+  const scanGeneration = useRef(0);
   const controlsRef = useRef(null);
+  const streamRef = useRef(null);
   const videoRef = useRef(null);
 
   const { profile } = useUserProfile();
 
   const stopScanner = () => {
+    // Invalidate camera requests that have not finished yet (permission dialogs,
+    // device startup, etc.), so an old request cannot restart a stopped scan.
+    scanGeneration.current += 1;
     try { controlsRef.current?.stop?.(); } catch {}
     controlsRef.current = null;
-    try { readerRef.current?.reset?.(); } catch {}
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraReady(false);
   };
 
-  const startScanner = async () => {
+  const startScanner = async (requestedCameraId = "") => {
     if (scanLocked.current) return;
+    stopScanner();
+    const generation = scanGeneration.current;
     setCameraError("");
     setScanning(true);
+    setAvailableCameras([]);
+    setSelectedCameraId("");
 
     try {
+      if (!window.isSecureContext) {
+        throw new Error("Camera access requires HTTPS or localhost. Open Veronica using its secure URL.");
+      }
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera access is not supported in this browser.");
       }
 
-      // Android phones can expose several rear lenses (main, ultra-wide,
-      // telephoto). "environment" alone may select a lens that cannot focus
-      // on a nearby product barcode. Request permission first, enumerate the
-      // actual cameras, then prefer the primary rear camera.
-      const permissionStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: "environment" } },
-      });
-      permissionStream.getTracks().forEach((track) => track.stop());
-
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      if (!devices.length) {
-        throw new Error("No camera was found on this device.");
+      // Prefer the rear camera, but let the user switch physical lenses when
+      // the browser picks a wide-angle camera that cannot focus on barcodes.
+      const preferredVideo = requestedCameraId
+        ? { deviceId: { exact: requestedCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } };
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: preferredVideo,
+        });
+      } catch (error) {
+        // A camera may disappear or reject constraints between scans.
+        if (!["NotFoundError", "OverconstrainedError"].includes(error?.name)) {
+          throw error;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
       }
 
-      const rearCameras = devices.filter((device) => {
-        const label = (device.label || "").toLowerCase();
-        return (
-          !/front|user|selfie/i.test(label) &&
-          (/back|rear|environment|facing back/i.test(label) || devices.length === 1)
-        );
-      });
-
-      // Prefer the primary/main rear lens. On Android Chrome this is commonly
-      // exposed as camera 0 / facing back. Avoid ultra-wide and telephoto
-      // lenses for close barcode work because their minimum focus distance
-      // can be unsuitable.
-      const cameraPool = rearCameras.length ? rearCameras : devices;
-      const rearCamera =
-        cameraPool.find((device) =>
-          /camera\s*0|camera2\s*0|0,?\s*facing\s*back|main|primary|standard/i.test(
-            device.label || ""
-          )
-        ) ||
-        cameraPool.find((device) =>
-          !/ultra.?wide|0\.5x|telephoto|tele|zoom/i.test(device.label || "")
-        ) ||
-        cameraPool[0];
-
-      console.log(
-        "Veronica camera selection:",
-        cameraPool.map((device) => ({
-          id: device.deviceId,
-          label: device.label,
-        })),
-        "selected:",
-        rearCamera.label
-      );
-
-      // Start the selected camera ourselves so the <video> element receives
-      // the live stream before ZXing begins decoding.
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          deviceId: { exact: rearCamera.deviceId },
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1080, min: 720 },
-          frameRate: { ideal: 30, max: 30 },
-        },
-      });
+      if (generation !== scanGeneration.current || scanLocked.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
 
       const video = videoRef.current;
       if (!video) {
-        stream.getTracks().forEach((track) => track.stop());
         throw new Error("Camera preview element is not available.");
       }
-
-      video.srcObject = stream;
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("autoplay", "true");
-      video.muted = true;
-
-      await new Promise((resolve, reject) => {
-        const timeout = window.setTimeout(
-          () => reject(new Error("Camera preview did not start.")),
-          5000
-        );
-
-        const ready = () => {
-          window.clearTimeout(timeout);
-          video.removeEventListener("loadedmetadata", ready);
-          resolve();
-        };
-
-        if (video.readyState >= 1) {
-          ready();
-        } else {
-          video.addEventListener("loadedmetadata", ready, { once: true });
-        }
-      });
-
-      await video.play();
 
       const track = stream.getVideoTracks()[0];
       const capabilities = track?.getCapabilities?.();
 
-      // Prefer continuous autofocus. For browsers that expose focusDistance,
-      // bias the lens toward a normal close barcode distance (~25 cm).
-      if (track?.applyConstraints) {
-        const advanced = [];
-
-        if (Array.isArray(capabilities?.focusMode)) {
-          if (capabilities.focusMode.includes("continuous")) {
-            advanced.push({ focusMode: "continuous" });
-          }
-        }
-
-        if (
-          capabilities?.focusDistance &&
-          Number.isFinite(capabilities.focusDistance.min) &&
-          Number.isFinite(capabilities.focusDistance.max)
-        ) {
-          const min = Number(capabilities.focusDistance.min);
-          const max = Number(capabilities.focusDistance.max);
-          const target = Math.min(Math.max(0.25, min), max);
-          advanced.push({ focusDistance: target });
-        }
-
-        if (advanced.length) {
-          try {
-            await track.applyConstraints({ advanced });
-          } catch (focusError) {
-            console.warn("Barcode autofocus constraints unavailable:", focusError);
-          }
+      if (capabilities?.focusMode?.includes("continuous") && track?.applyConstraints) {
+        try {
+          await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+        } catch (focusError) {
+          console.warn("Barcode autofocus unavailable:", focusError);
         }
       }
 
-      const settings = track?.getSettings?.();
-      console.log("Veronica active camera settings:", settings);
-
-      // Veronica scans packaged-food product barcodes, so prioritize the
-      // formats actually used on retail packaging. The barcode in the
-      // screenshot is an EAN-13 (13 digits beginning with 890), and ZXing
-      // supports EAN-13/EAN-8/UPC-A/UPC-E directly.
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.EAN_13,
@@ -235,45 +166,75 @@ const BarcodeScanning = () => {
       ]);
       hints.set(DecodeHintType.TRY_HARDER, true);
 
-      const reader = new BrowserMultiFormatReader(hints);
-      readerRef.current = reader;
-
-      const controls = await reader.decodeFromVideoElement(
-        video,
-        (result) => {
+      const reader = new BrowserMultiFormatReader(hints, {
+        delayBetweenScanAttempts: 250,
+        delayBetweenScanSuccess: 250,
+      });
+      // Let ZXing attach/play the stream and own its decoder cleanup.
+      const controls = await reader.decodeFromStream(
+        stream, video,
+        (result, error, controls) => {
+          if (generation !== scanGeneration.current) return;
           if (result && !scanLocked.current) {
             const value = String(result.getText?.() || "").trim();
             if (value) handleScan(value);
+          } else if (
+            error &&
+            !(error instanceof NotFoundException) &&
+            !(error instanceof ChecksumException) &&
+            !(error instanceof FormatException)
+          ) {
+            // ZXing stops decoding on unexpected canvas/video errors. Without
+            // reporting them, the preview stays open but never finds barcodes.
+            console.error("Barcode frame decoding stopped:", error);
+            try { controls?.stop?.(); } catch {}
+            stopScanner();
+            setScanning(false);
+            setCameraError("Camera preview opened, but barcode reading stopped. Try another camera or restart the scanner.");
           }
         }
       );
 
-      controlsRef.current = {
-        stop: () => {
-          try {
-            controls?.stop?.();
-          } catch {}
-          stream.getTracks().forEach((track) => track.stop());
-          if (video.srcObject === stream) video.srcObject = null;
-        },
-      };
+      if (generation !== scanGeneration.current || scanLocked.current) {
+        controls.stop();
+        return;
+      }
+      controlsRef.current = controls;
 
       setCameraReady(true);
+
+      // Enumerating camera lenses must never delay or prevent decoding.
+      // After permission is granted, labels let users change to a main rear
+      // lens if the automatic selection looks blurry.
+      try {
+        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+        if (generation !== scanGeneration.current) return;
+        setAvailableCameras(sortBarcodeCameras(devices));
+        setSelectedCameraId(track?.getSettings?.().deviceId || requestedCameraId || "");
+      } catch (deviceError) {
+        console.warn("Could not list cameras:", deviceError);
+        if (generation === scanGeneration.current) setAvailableCameras([]);
+      }
     } catch (error) {
+      if (generation !== scanGeneration.current) return;
       console.error("ZXing scanner startup failed:", error);
       stopScanner();
       setScanning(false);
       setCameraError(
         error?.name === "NotAllowedError"
           ? "Camera permission was denied. Allow camera access for Veronica and try again."
+          : error?.name === "NotReadableError"
+          ? "The camera is being used by another app. Close it and try again."
+          : error?.name === "NotFoundError"
+          ? "No camera was found on this device."
           : error?.message || "Unable to start the barcode scanner."
       );
     }
   };
 
   useEffect(() => {
-    scanLocked.current = false;
-    startScanner();
+    // Start only on a user tap/click. Mobile browsers can reject camera/video
+    // playback initiated automatically during page mount.
     return () => stopScanner();
   }, []);
 
@@ -328,12 +289,16 @@ const BarcodeScanning = () => {
           `/api/scanBarcode/${encodeURIComponent(cleanBarcode)}`
         );
         response = await result.json();
+        if (!result.ok && result.status !== 404) {
+          throw new Error(response.error || "The food database is temporarily unavailable. Please try again.");
+        }
       }
 
       console.log("Barcode API Response:", response);
 
       if (!response.success || !response.data) {
         setBarcodeNotFound(true);
+        scanLocked.current = false;
         toast.info("Product not in the barcode database. You can scan its label instead.");
         return;
       }
@@ -368,10 +333,8 @@ const BarcodeScanning = () => {
 
     } catch (error) {
       console.error("Error fetching product:", error);
-
-      toast.error(
-        "Something went wrong while fetching product"
-      );
+      scanLocked.current = false;
+      toast.error(error?.message || "Something went wrong while fetching the product.");
     } finally {
       setLoading(false);
     }
@@ -648,8 +611,9 @@ const BarcodeScanning = () => {
             </div>
           )}
 
-          {scanning && (
-            <div className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]">
+          <div className={scanning
+            ? "relative w-full overflow-hidden rounded-3xl border border-white/70 bg-black p-2 shadow-[0_24px_70px_rgba(20,45,35,.16)]"
+            : "hidden"}>
               <div className="relative h-[380px] w-full overflow-hidden rounded-2xl bg-black">
                 <video
                   ref={videoRef}
@@ -670,9 +634,45 @@ const BarcodeScanning = () => {
                 </div>
 
                 <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/60 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
-                  Align the product barcode inside the frame
+                  {cameraReady ? "Align the product barcode inside the frame" : "Starting camera…"}
                 </div>
               </div>
+          </div>
+
+          {scanning && (
+            <div className="flex w-full flex-col gap-3">
+              {cameraReady && availableCameras.length > 1 && (
+                <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
+                  Camera lens
+                  <select
+                    value={selectedCameraId}
+                    onChange={(event) => startScanner(event.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-slate-900"
+                  >
+                    <option value="">Automatic camera</option>
+                    {availableCameras.map((camera, index) => (
+                      <option value={camera.deviceId} key={camera.deviceId || index}>
+                        {camera.label || `Camera ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {cameraReady && (
+                <p className="text-center text-xs leading-5 text-slate-500">
+                  Hold the barcode steady about 15–25 cm away, in good light.
+                  {availableCameras.length > 1
+                    ? " If it stays blurry, try another rear camera lens above."
+                    : " If it stays blurry, adjust the distance or enter its numbers below."}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => { stopScanner(); setScanning(false); }}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-slate-700"
+              >
+                Stop camera
+              </button>
             </div>
           )}
 
@@ -685,7 +685,7 @@ const BarcodeScanning = () => {
               disabled={loading}
               className="liquid-glass-button w-full px-5 py-3.5 text-base font-bold disabled:opacity-50"
             >
-              Scan with camera
+              Start camera scanner
             </button>
           )}
 

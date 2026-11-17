@@ -88,36 +88,50 @@ const cleanFoodData = (product) => ({
 });
 
 export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
+
   const { barcode } = req.query;
 
-  if (!barcode) {
-    return res.status(400).json({ error: "Barcode is required" });
+  if (typeof barcode !== "string" || !/^\d{8,14}$/.test(barcode)) {
+    return res.status(400).json({ success: false, error: "Enter a valid product barcode (8–14 digits)." });
   }
 
   try {
     const response = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
+      {
+        headers: {
+          "User-Agent": "Veronica/0.1 (https://github.com/sajanmaurya/veronica)",
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(12000),
+      }
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API Error Response:", errorText);
-      throw new Error(
-        `Failed to fetch data from OpenFoodFacts: ${response.statusText}`
-      );
+      console.error("Open Food Facts request failed:", response.status);
+      return res.status(503).json({
+        success: false,
+        error: "The food database is temporarily unavailable. Please try again.",
+      });
     }
 
     const data = await response.json();
 
     if (data.status === 1 && data.product) {
       const cleanedData = cleanFoodData(data.product);
-      console.log("Cleaned API Response:", JSON.stringify(cleanedData));
+      console.log("Open Food Facts product retrieved:", barcode);
       res.status(200).json({ success: true, data: cleanedData });
     } else {
       res.status(404).json({ success: false, error: "Product not found" });
     }
   } catch (error) {
     console.error("Error fetching product details:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(503).json({
+      success: false,
+      error: "Unable to reach the food database. Check your connection and try again.",
+    });
   }
 }
