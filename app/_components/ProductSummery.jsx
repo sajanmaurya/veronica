@@ -1,5 +1,7 @@
 "use client";
 
+import NutritionGrade from "./NutritionGrade";
+
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
@@ -56,6 +58,7 @@ async function uploadHistoryImage(imageData, folder) {
 }
 
 function finite(value) {
+  if (value == null || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -285,21 +288,9 @@ export default function ProductSummary({
   if (!aiData) return null;
 
   const nutrition = aiData.nutrition || {};
-  const ratingVerified = aiData.rating_verified !== false && aiData.rating != null;
-  const healthRating = ratingVerified
-    ? Math.round(Math.min(10, Math.max(0, Number(aiData.rating) || 0)) * 10) / 10
-    : null;
-  const consumptionFrequency = !ratingVerified
-    ? "Verify first"
-    : healthRating >= 8
-    ? "Regular"
-    : healthRating >= 6
-    ? "Moderate"
-    : healthRating >= 4
-    ? "Occasional"
-    : "Rarely";
-
-  const nutriScoreGrade = String(aiData.nutriscore_grade || "").toUpperCase();
+  const score = aiData.nutrition_score;
+  const grade = score?.grade || null;
+  const gradeColor = { A: "bg-emerald-700", B: "bg-lime-700", C: "bg-amber-700", D: "bg-orange-700", E: "bg-red-700" }[grade] || "bg-slate-600";
 
   const allergies = String(profile?.allergies || "")
     .split(/[,;]+/)
@@ -364,20 +355,17 @@ export default function ProductSummary({
                 )}
               </div>
 
-              <div className="shrink-0 rounded-2xl bg-[#0B5F4A] px-3 py-2.5 text-right text-white">
+              <div className={`shrink-0 rounded-2xl ${gradeColor} px-3 py-2.5 text-right text-white`}>
                 <p className="text-[8px] font-bold uppercase tracking-[.12em] text-emerald-100">
-                  Score
+                  Nutrition grade
                 </p>
                 <div className="mt-0.5 flex items-end justify-end gap-0.5">
                   <span className="text-2xl font-semibold leading-none tracking-[-.05em]">
-                    {ratingVerified ? healthRating : "—"}
+                    {grade || "—"}
                   </span>
-                  {ratingVerified && (
-                    <span className="mb-0.5 text-[10px] text-emerald-100">/10</span>
-                  )}
                 </div>
                 <p className="mt-1 text-[10px] font-semibold leading-none">
-                  {consumptionFrequency}
+                  {grade ? "Calculated" : score?.status === "not_applicable" ? "Not applicable" : "Insufficient data"}
                 </p>
               </div>
             </div>
@@ -394,12 +382,9 @@ export default function ProductSummary({
               <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${sourceTone(aiData.ingredients_source)}`}>
                 Ingredients: {sourceLabel(aiData.ingredients_source)}
               </span>
-              {nutriScoreGrade && nutriScoreGrade !== "UNKNOWN" && (
-                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">
-                  Nutri-Score {nutriScoreGrade}
-                </span>
-              )}
             </div>
+
+            <NutritionGrade score={score} />
 
             {aiData.nutrition_validation?.status === "needs_verification" && (
               <div className="mt-3 rounded-xl bg-amber-50 px-3 py-3">

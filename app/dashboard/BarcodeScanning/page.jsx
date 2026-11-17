@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
 
-const BARCODE_CACHE_DB = "veronica-barcode-cache-v2";
+const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
 const BARCODE_CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
 
@@ -554,7 +554,9 @@ const BarcodeScanning = () => {
           ...current,
           ...(scannedIngredients || scannedNutrition
             ? {
-                rating: scan.rating,
+                rating: null,
+                rating_verified: false,
+                nutrition_score: scannedNutrition ? scan.nutrition_score : current.nutrition_score,
                 summary: scan.summary,
                 harmful_ingredients: scan.harmful_ingredients,
                 ingredient_explanations: scan.ingredient_explanations,
@@ -580,7 +582,8 @@ const BarcodeScanning = () => {
           verification_required:
             ingredientsSource === "unavailable" ||
             nutritionSource === "unavailable" ||
-            quantitySource === "unavailable",
+            quantitySource === "unavailable" ||
+            !(scannedNutrition ? scan.nutrition_score : current.nutrition_score)?.grade,
         };
       });
 

@@ -1,3 +1,4 @@
+import { scoringFields } from "@/lib/scoringAdapter.mjs";
 import {
   enrichProductFromWeb,
   needsWebEnrichment,
@@ -10,7 +11,6 @@ const schema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    rating: { type: "number" },
     harmful_ingredients: {
       type: "array",
       items: {
@@ -40,7 +40,6 @@ const schema = {
     },
   },
   required: [
-    "rating",
     "harmful_ingredients",
     "summary",
     "user_specific_summary",
@@ -87,12 +86,6 @@ function nutritionToProductShape(nutrition) {
   };
 }
 
-function cleanRating(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 0;
-  return Math.min(10, Math.max(1, number));
-}
-
 async function analyzeWithGroq(apiKey, product, profile) {
   const prompt = `
 You are Veronica, a food-product nutrition and ingredient analyst.
@@ -101,10 +94,7 @@ Analyze the supplied product data. Use only information present in the product d
 
 Give a practical general assessment. Do not diagnose, treat, or claim to medically clear a person.
 
-Rating:
-1-3 = poor nutritional profile
-4-6 = mixed/moderate
-7-10 = stronger nutritional profile
+Do not generate any rating, score, grade, or consumption-frequency recommendation. The server calculates nutrition grades using fixed rules.
 
 Consider sugar, saturated fat, sodium, protein, fiber, calories, ingredients, additives, and processing when the data contains them.
 
@@ -187,13 +177,6 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GROQ_API_KEY;
 
-  if (!apiKey) {
-    return res.status(500).json({
-      success: false,
-      message: "GROQ_API_KEY is not configured.",
-    });
-  }
-
   try {
     const { product, profile } = req.body || {};
 
@@ -208,7 +191,7 @@ export default async function handler(req, res) {
     const offValidation = validateBarcodeNutrition(product);
     let webEnrichment = null;
 
-    if (enrichmentNeed.required || offValidation.requires_fallback) {
+    if (apiKey && (enrichmentNeed.required || offValidation.requires_fallback)) {
       try {
         webEnrichment = await enrichProductFromWeb(product, apiKey);
       } catch (error) {
@@ -235,20 +218,7 @@ export default async function handler(req, res) {
       : offIngredients;
 
     const offNutrition = offValidation.nutrition;
-    const useWebNutrition =
-      (offValidation.status === "needs_verification" ||
-        nutritionCount(offNutrition) < 3) &&
-      webEnrichment?.safe_to_use_nutrition &&
-      webEnrichment?.nutrition_per_100g;
-
-    const effectiveNutrition = useWebNutrition
-      ? {
-          serving_size: "per 100 g",
-          label_basis: "per_100g",
-          servings_per_container: null,
-          ...webEnrichment.nutrition_per_100g,
-        }
-      : offNutrition;
+    // Web-model estimates may explain missing data but must not become score inputs.
 
     const effectiveQuantity =
       !isUnknown(product.quantity)
@@ -261,18 +231,14 @@ export default async function handler(req, res) {
       ...product,
       quantity: effectiveQuantity,
       ingredients: ingredients.length ? ingredients.join(", ") : "Unknown",
-      nutrients_per_100g: useWebNutrition
-        ? nutritionToProductShape(webEnrichment.nutrition_per_100g)
-        : nutritionToProductShape(offNutrition),
+      nutrients_per_100g: nutritionToProductShape(offNutrition),
       data_provenance: {
         ingredients: useWebIngredients
           ? "web_verified"
           : offIngredients.length
           ? "open_food_facts"
           : "unavailable",
-        nutrition: useWebNutrition
-          ? "web_verified"
-          : offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
+        nutrition: offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
           ? "open_food_facts"
           : "unavailable",
         quantity: !isUnknown(product.quantity)
@@ -283,7 +249,11 @@ export default async function handler(req, res) {
       },
     };
 
-    const data = await analyzeWithGroq(apiKey, effectiveProduct, profile);
+    let data = { summary: "Product nutrition is shown below. AI explanation is unavailable.", harmful_ingredients: [], ingredient_explanations: [], user_specific_summary: "" };
+    if (apiKey) {
+      try { data = await analyzeWithGroq(apiKey, effectiveProduct, profile); }
+      catch (error) { console.warn("Optional product explanation unavailable:", error?.message); }
+    }
 
     const ingredientSource = useWebIngredients
       ? "web_verified"
@@ -291,9 +261,7 @@ export default async function handler(req, res) {
       ? "open_food_facts"
       : "unavailable";
 
-    const nutritionSource = useWebNutrition
-      ? "web_verified"
-      : offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
+    const nutritionSource = offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
       ? "open_food_facts"
       : "unavailable";
 
@@ -302,6 +270,12 @@ export default async function handler(req, res) {
       : webEnrichment?.pack_size_verified
       ? "web_verified"
       : "unavailable";
+
+    const calculated = scoringFields(product, offValidation.nutrition, {
+          blockedReason: offValidation.status === "needs_verification"
+            ? "Barcode nutrition needs verification. Scan the package label."
+            : undefined,
+        });
 
     return res.status(200).json({
       success: true,
@@ -319,7 +293,7 @@ export default async function handler(req, res) {
           quantitySource === "open_food_facts",
         ingredients,
         ingredients_source: ingredientSource,
-        nutrition: effectiveNutrition,
+        nutrition: offValidation.nutrition,
         nutrition_source: nutritionSource,
         nutrition_validation: {
           status:
@@ -327,9 +301,7 @@ export default async function handler(req, res) {
               ? "needs_verification"
               : "verified",
           message:
-            nutritionSource === "web_verified"
-              ? "Nutrition was recovered from a high-confidence exact-product web match after the barcode data failed validation."
-              : nutritionSource === "open_food_facts" && offValidation.corrected_fields.length
+            nutritionSource === "open_food_facts" && offValidation.corrected_fields.length
               ? "Open Food Facts data passed sanity checks after safe corrections derived from its own fields."
               : nutritionSource === "open_food_facts"
               ? "Open Food Facts nutrition passed consistency checks."
@@ -345,11 +317,7 @@ export default async function handler(req, res) {
           product.nutriscore_score != null
             ? Number(product.nutriscore_score)
             : null,
-        rating:
-          nutritionSource === "unavailable"
-            ? null
-            : cleanRating(data.rating),
-        rating_verified: nutritionSource !== "unavailable",
+        ...calculated,
         data_sources: {
           ingredients: ingredientSource,
           nutrition: nutritionSource,
@@ -369,7 +337,8 @@ export default async function handler(req, res) {
           ingredientSource === "unavailable" ||
           nutritionSource === "unavailable" ||
           quantitySource === "unavailable" ||
-          offValidation.status === "needs_verification",
+          offValidation.status === "needs_verification" ||
+          !calculated.nutrition_score.grade,
       },
     });
   } catch (error) {

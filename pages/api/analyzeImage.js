@@ -1,3 +1,5 @@
+import { scoringFields } from "@/lib/scoringAdapter.mjs";
+
 export const config = {
   api: {
     bodyParser: false,
@@ -5,137 +7,6 @@ export const config = {
 };
 
 const MODEL_NAME = "qwen/qwen3.8-27b";
-
-function parseServingGrams(servingSize) {
-  if (!servingSize || typeof servingSize !== "string") return null;
-
-  const match = servingSize.replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(g|gram|grams)\b/i);
-  return match ? Number(match[1]) : null;
-}
-
-function roundNumber(value, decimals = 2) {
-  if (value == null || !Number.isFinite(Number(value))) return null;
-  const factor = 10 ** decimals;
-  return Math.round(Number(value) * factor) / factor;
-}
-
-function normalizeNutrition(nutrition) {
-  if (!nutrition || typeof nutrition !== "object") {
-    return {
-      nutrition: nutrition || {},
-      validation: {
-        status: "needs_verification",
-        message: "Nutrition data could not be validated.",
-        basis: "unknown",
-      },
-    };
-  }
-
-  const result = { ...nutrition };
-  const servingGrams = parseServingGrams(result.serving_size);
-  const massFields = [
-    "total_fat_g",
-    "saturated_fat_g",
-    "trans_fat_g",
-    "carbohydrates_g",
-    "fiber_g",
-    "total_sugar_g",
-    "added_sugar_g",
-    "protein_g",
-  ];
-
-  const macroSum = massFields
-    .filter((key) => key !== "fiber_g")
-    .reduce((sum, key) => sum + (Number(result[key]) || 0), 0);
-
-  let convertedFrom100g = false;
-
-  // A common label-reading failure is returning the per-100 g column
-  // while reporting the package serving size. If the numbers cannot
-  // physically fit inside the stated gram serving, and they look like
-  // a normal per-100 g nutrition panel, convert them.
-  if (
-    servingGrams &&
-    servingGrams < 100 &&
-    macroSum > servingGrams * 1.15 &&
-    macroSum >= 70 &&
-    macroSum <= 120
-  ) {
-    const factor = servingGrams / 100;
-
-    for (const key of massFields) {
-      if (result[key] != null) {
-        result[key] = roundNumber(Number(result[key]) * factor);
-      }
-    }
-
-    if (result.calories != null) {
-      result.calories = roundNumber(Number(result.calories) * factor);
-    }
-
-    if (result.sodium_mg != null) {
-      result.sodium_mg = roundNumber(Number(result.sodium_mg) * factor);
-    }
-
-    result.label_basis = "per_serving";
-    convertedFrom100g = true;
-  }
-
-  const fat = Number(result.total_fat_g);
-  const carbs = Number(result.carbohydrates_g);
-  const protein = Number(result.protein_g);
-  const calories = Number(result.calories);
-
-  const estimatedCalories =
-    (Number.isFinite(fat) ? fat * 9 : 0) +
-    (Number.isFinite(carbs) ? carbs * 4 : 0) +
-    (Number.isFinite(protein) ? protein * 4 : 0);
-
-  const hasCoreMacros =
-    Number.isFinite(fat) &&
-    Number.isFinite(carbs) &&
-    Number.isFinite(protein) &&
-    Number.isFinite(calories);
-
-  const caloriesConsistent =
-    !hasCoreMacros ||
-    (estimatedCalories > 0 &&
-      calories >= estimatedCalories * 0.45 &&
-      calories <= estimatedCalories * 1.35);
-
-  const servingPhysicallyPlausible =
-    !servingGrams ||
-    massFields
-      .filter((key) => result[key] != null)
-      .every((key) => Number(result[key]) <= servingGrams * 1.05);
-
-  const status =
-    caloriesConsistent && servingPhysicallyPlausible
-      ? "verified"
-      : "needs_verification";
-
-  let message = "Nutrition values passed basic consistency checks.";
-
-  if (convertedFrom100g) {
-    message =
-      "The label appeared to show per-100 g values, so Veronica converted them to the stated serving size.";
-  } else if (!caloriesConsistent) {
-    message =
-      "Calories do not closely match the reported macronutrients. Verify the nutrition panel before relying on these values.";
-  } else if (!servingPhysicallyPlausible) {
-    message =
-      "One or more nutrient quantities exceed the stated serving size. Verify the nutrition panel.";
-  }
-
-  return {
-    nutrition: result,
-    validation: {
-      status,
-      message,
-      basis: convertedFrom100g ? "converted_from_per_100g" : result.label_basis || "unknown",
-    },
-  };
-}
 
 function cleanJson(text) {
   if (!text || typeof text !== "string") {
@@ -173,7 +44,6 @@ const foodAnalysisSchema = {
     product_name: { type: "string" },
     product_category: { type: "string" },
     package_quantity: { type: ["string", "null"] },
-    rating: { type: "number" },
     nutrition: {
       type: "object",
       additionalProperties: false,
@@ -265,7 +135,6 @@ const foodAnalysisSchema = {
     "product_name",
     "product_category",
     "package_quantity",
-    "rating",
     "nutrition",
     "ingredients",
     "major_ingredients",
@@ -355,7 +224,6 @@ A valid image must contain a food/beverage product or its packaging/label. Examp
 
 If the image is unrelated to food (for example a laptop, phone, person, room, animal, vehicle, scenery, document unrelated to food, or any other non-food object), set "is_food_product" to false. In that case:
 - Do not assign a health rating.
-- Set "rating" to 0.
 - Set "product_name" to "Unknown product".
 - Set "product_category" to "Unknown".
 - Return empty arrays for ingredients, major_ingredients, harmful_ingredients, and ingredient_explanations.
@@ -394,7 +262,7 @@ Tasks:
 
 1. Decide whether this is a food/beverage product or food label and set "is_food_product" accordingly. Never treat an unrelated object as a food product.
 
-2. Give a health rating from 1 to 10 based on the visible nutrition and ingredient information. Only provide a non-zero rating when "is_food_product" is true.
+2. Do not generate any rating, score, grade, or consumption-frequency recommendation. The server calculates nutrition grades using fixed rules.
 
 3. Classify the product into a concise broad food category such as chips, biscuits, cereals, yogurt, dairy, beverages, sauces, frozen foods, snacks, or another specific category supported by the package. Do not invent a category.
 
@@ -416,10 +284,7 @@ Tasks:
 
 8. Select the most important ingredients to highlight in "major_ingredients". Use the visible ingredient list as the source.
 
-9. State whether the product is more suitable for:
-- frequent consumption
-- occasional consumption
-- rare consumption
+9. Describe the visible nutrition facts without making consumption-frequency recommendations.
 
 10. If the user has relevant diseases, allergies, or dietary preferences, provide a personalized summary.
 
@@ -438,7 +303,7 @@ IMPORTANT DATA RULES:
 - Never assign a health rating to a non-food image.
 - Report the nutrition-panel basis in "label_basis" exactly from the visible label.
 - If the panel is per 100 g or per 100 ml, do NOT pretend those numbers are per serving.
-- Nutrition values should be transcribed from the visible panel; the server will handle a safe per-100 g to serving conversion when the serving size is clearly available.
+- Transcribe the label values and basis exactly. Never convert, infer, or correct the measurement basis. Report serving_size as grams or millilitres only when printed, otherwise null.
 - Never silently change values because they "seem healthy" or "seem reasonable".
 - Do NOT estimate or guess nutrition numbers.
 - If a nutrition value cannot be read confidently, return null.
@@ -548,16 +413,19 @@ Return data matching the supplied JSON schema.
       });
     }
 
-    const normalized = normalizeNutrition(data.nutrition);
-    data.nutrition = normalized.nutrition;
-    data.nutrition_validation = normalized.validation;
+    Object.assign(data, scoringFields(data, data.nutrition));
+    data.nutrition_validation = {
+      status: data.nutrition_score.status === "invalid_input" ? "needs_verification" : "extracted",
+      message: data.nutrition_score.issues?.join(" ") || "Values transcribed from the label; check against the package.",
+      basis: data.nutrition?.label_basis || "unknown",
+    };
     data.ingredients_source =
       Array.isArray(data.ingredients) && data.ingredients.length
         ? "package_scan"
         : "unavailable";
     data.nutrition_source =
-      Object.values(data.nutrition || {}).some(
-        (value) => value != null && value !== "unknown"
+      ["calories", "total_sugar_g", "saturated_fat_g", "sodium_mg"].some(
+        (key) => typeof data.nutrition?.[key] === "number"
       )
         ? "package_scan"
         : "unavailable";
@@ -572,7 +440,8 @@ Return data matching the supplied JSON schema.
     data.verification_required =
       data.ingredients_source === "unavailable" ||
       data.nutrition_source === "unavailable" ||
-      !data.package_quantity;
+      !data.package_quantity ||
+      !data.nutrition_score.grade;
 
     return res.status(200).json({
       success: true,
