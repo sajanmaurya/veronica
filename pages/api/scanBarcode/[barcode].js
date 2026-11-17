@@ -42,8 +42,8 @@ const cleanFoodData = (product) => ({
   countries: product.countries_tags
     ? product.countries_tags.join(", ")
     : "Unknown",
-  image_front_url: product.image_front_url || "Unknown",
-  image_nutrition_url: product.image_nutrition_url || "Unknown",
+  image_front_url: product.image_front_url || product.image_url || product.image_front_small_url || null,
+  image_nutrition_url: product.image_nutrition_url || null,
   quantity: product.quantity || "Unknown",
   product_type: product.product_type || "food",
   serving_size: product.serving_size || "Unknown",

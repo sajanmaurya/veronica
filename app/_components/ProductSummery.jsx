@@ -5,6 +5,28 @@ import NutritionGrade from "./NutritionGrade";
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useUserProfile } from "@/context/UserProfileContext";
+import { formatNutritionValue, nutritionBasisLabel, usableProductImage } from "@/lib/nutritionDisplay.mjs";
+
+function ProductThumbnail({ imageUrl }) {
+  const source = usableProductImage(imageUrl);
+  const [failedUrl, setFailedUrl] = useState("");
+  const showImage = source && source !== failedUrl;
+
+  return (
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white bg-white/85 p-1.5">
+      {showImage ? (
+        <img
+          src={source}
+          alt="Product packaging"
+          className="h-full w-full object-contain"
+          onError={() => setFailedUrl(source)}
+        />
+      ) : (
+        <span className="text-center text-[10px] leading-3 text-slate-500">No product photo</span>
+      )}
+    </div>
+  );
+}
 
 async function makePermanentImageData(sourceUrl) {
   if (!sourceUrl) return null;
@@ -333,13 +355,7 @@ export default function ProductSummary({
         <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-[0_12px_34px_rgba(15,23,42,.07)] backdrop-blur-xl sm:rounded-[1.75rem]">
           <div className="p-3.5 sm:p-6">
             <div className="flex items-start gap-3">
-              {(imageFrontUrl || imageNutritionImage) && (
-                <img
-                  src={imageFrontUrl || imageNutritionImage}
-                  alt="Product"
-                  className="h-16 w-16 shrink-0 rounded-2xl border border-white bg-white object-contain p-2"
-                />
-              )}
+              <ProductThumbnail imageUrl={imageFrontUrl} />
 
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-700">
@@ -408,11 +424,9 @@ export default function ProductSummary({
                     Quick view
                   </h2>
                 </div>
-                {nutrition.serving_size && (
-                  <span className="text-[10px] font-semibold text-slate-400">
-                    {nutrition.serving_size}
-                  </span>
-                )}
+                <span className="shrink-0 text-right text-[10px] font-semibold text-slate-500">
+                  {nutritionBasisLabel(nutrition)}
+                </span>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -422,31 +436,27 @@ export default function ProductSummary({
                   return (
                     <div
                       key={label}
-                      className="rounded-2xl border border-white/80 bg-white/75 p-3"
+                      className="min-w-0 rounded-2xl border border-white/80 bg-white/75 p-3"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                            {label}
-                          </p>
-                          <p className="mt-1 text-lg font-semibold text-slate-950">
-                            {value != null ? value : "—"}
-                            {value != null && (
-                              <span className="ml-1 text-[10px] text-slate-400">
-                                {unit}
-                              </span>
-                            )}
-                          </p>
-                        </div>
+                        <p className="min-w-0 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          {label}
+                        </p>
 
                         {key !== "calories" && (
                           <span
-                            className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase ${toneBadge[status.tone]}`}
+                            className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold uppercase ${toneBadge[status.tone]}`}
                           >
                             {status.label}
                           </span>
                         )}
                       </div>
+                      <p className="mt-2 flex min-w-0 items-baseline gap-1 text-lg font-semibold text-slate-950">
+                        <span className="min-w-0 truncate">{formatNutritionValue(value, unit)}</span>
+                        {finite(value) != null && (
+                          <span className="shrink-0 text-[10px] text-slate-400">{unit}</span>
+                        )}
+                      </p>
                     </div>
                   );
                 })}
@@ -579,10 +589,10 @@ export default function ProductSummary({
                       ["Protein", nutrition.protein_g, "g"],
                       ["Sodium", nutrition.sodium_mg, "mg"],
                     ].map(([label, value, unit]) => (
-                      <div key={label} className="rounded-xl bg-slate-50 p-3">
+                      <div key={label} className="min-w-0 rounded-xl bg-slate-50 p-3">
                         <p className="text-[10px] text-slate-500">{label}</p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {value != null ? `${value} ${unit}` : "—"}
+                        <p className="mt-1 break-words font-semibold text-slate-900">
+                          {formatNutritionValue(value, unit)} {finite(value) != null ? unit : ""}
                         </p>
                       </div>
                     ))}

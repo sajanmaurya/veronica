@@ -30,9 +30,23 @@ test('barcode lookup returns product data and uses an identifiable API client', 
     const response = await invoke(handler, '8901234567890');
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.data.product_name, 'Test snack');
+    assert.equal(response.body.data.image_front_url, null);
+    assert.equal(response.body.data.image_nutrition_url, null);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('barcode lookup uses the generic product photo when a front photo is missing', async () => {
+  const handler = await loadHandler();
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({
+      status: 1, product: { product_name: 'Chocolate', image_url: 'https://images.openfoodfacts.org/chocolate.jpg' },
+    }) });
+    const response = await invoke(handler, '9300605155459');
+    assert.equal(response.body.data.image_front_url, 'https://images.openfoodfacts.org/chocolate.jpg');
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test('barcode lookup separates missing products from network failures', async () => {

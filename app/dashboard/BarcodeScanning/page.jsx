@@ -13,6 +13,8 @@ import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
 import { getPreferredBarcodeCamera, sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
+import { makeNativeBarcodeDetector, firstDetectedRetailBarcode } from "@/lib/nativeBarcodeDetector.mjs";
+import { usableProductImage } from "@/lib/nutritionDisplay.mjs";
 
 const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
@@ -86,6 +88,7 @@ const BarcodeScanning = () => {
   const videoRef = useRef(null);
   const detectionTimerRef = useRef(null);
   const thoroughModeTimerRef = useRef(null);
+  const nativeScanTimerRef = useRef(null);
 
   const { profile } = useUserProfile();
   const preferredCameraId = getPreferredBarcodeCamera(availableCameras)?.deviceId || "";
@@ -96,12 +99,51 @@ const BarcodeScanning = () => {
     scanGeneration.current += 1;
     if (thoroughModeTimerRef.current) window.clearTimeout(thoroughModeTimerRef.current);
     thoroughModeTimerRef.current = null;
+    if (nativeScanTimerRef.current) window.clearTimeout(nativeScanTimerRef.current);
+    nativeScanTimerRef.current = null;
     try { controlsRef.current?.stop?.(); } catch {}
     controlsRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraReady(false);
+  };
+
+  const startNativeDetection = (video, generation) => {
+    // Android Chrome can decode retail barcodes using the device's native
+    // detector. Keep ZXing running as a cross-browser fallback.
+    void (async () => {
+      const detector = await makeNativeBarcodeDetector(window.BarcodeDetector);
+      if (!detector || generation !== scanGeneration.current || scanLocked.current) return;
+
+      let failures = 0;
+      const detectFrame = async () => {
+        if (generation !== scanGeneration.current || scanLocked.current || detectionTimerRef.current) return;
+        if (video.readyState >= 2) {
+          try {
+            const matches = await detector.detect(video);
+            if (generation !== scanGeneration.current || scanLocked.current) return;
+            failures = 0;
+            const barcode = firstDetectedRetailBarcode(matches);
+            if (barcode) {
+              handleScan(barcode, true);
+              return;
+            }
+          } catch (error) {
+            // Some browsers expose BarcodeDetector but fail on video frames.
+            // Disable this path after repeated errors; ZXing stays available.
+            if (++failures >= 3) {
+              console.warn("Native barcode detection unavailable; using ZXing:", error);
+              return;
+            }
+          }
+        }
+        if (generation === scanGeneration.current && !scanLocked.current) {
+          nativeScanTimerRef.current = window.setTimeout(detectFrame, 220);
+        }
+      };
+      void detectFrame();
+    })();
   };
 
   const startScanner = async (requestedCameraId = "") => {
@@ -231,6 +273,7 @@ const BarcodeScanning = () => {
       controlsRef.current = controls;
 
       setCameraReady(true);
+      startNativeDetection(video, generation);
 
       // Start with ZXing's normal, faster 1D pass. Only spend extra CPU on
       // TRY_HARDER if the barcode has not been recognized after a short wait.
@@ -368,8 +411,8 @@ const BarcodeScanning = () => {
       const product = response.data;
 
       // Product details
-      const frontImage = product.image_front_url || "";
-      const nutritionImage = product.image_nutrition_url || "";
+      const frontImage = usableProductImage(product.image_front_url);
+      const nutritionImage = usableProductImage(product.image_nutrition_url);
       const name = product.product_name || "Unknown Product";
 
       setImageFrontUrl(frontImage);
