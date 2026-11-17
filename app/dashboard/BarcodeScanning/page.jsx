@@ -17,6 +17,7 @@ import { sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
 const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
 const BARCODE_CACHE_TTL = 1000 * 60 * 60 * 24 * 7;
+const SCAN_SUCCESS_ANIMATION_MS = 650;
 
 function openBarcodeCache() {
   return new Promise((resolve, reject) => {
@@ -74,6 +75,7 @@ const BarcodeScanning = () => {
   const [aiData, setAiData] = useState(null);
   const [cameraError, setCameraError] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
+  const [barcodeDetected, setBarcodeDetected] = useState(false);
   const [availableCameras, setAvailableCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const scanLocked = useRef(false);
@@ -81,6 +83,7 @@ const BarcodeScanning = () => {
   const controlsRef = useRef(null);
   const streamRef = useRef(null);
   const videoRef = useRef(null);
+  const detectionTimerRef = useRef(null);
 
   const { profile } = useUserProfile();
 
@@ -99,9 +102,12 @@ const BarcodeScanning = () => {
   const startScanner = async (requestedCameraId = "") => {
     if (scanLocked.current) return;
     stopScanner();
+    if (detectionTimerRef.current) window.clearTimeout(detectionTimerRef.current);
+    detectionTimerRef.current = null;
     const generation = scanGeneration.current;
     setCameraError("");
     setScanning(true);
+    setBarcodeDetected(false);
     setAvailableCameras([]);
     setSelectedCameraId("");
 
@@ -177,7 +183,7 @@ const BarcodeScanning = () => {
           if (generation !== scanGeneration.current) return;
           if (result && !scanLocked.current) {
             const value = String(result.getText?.() || "").trim();
-            if (value) handleScan(value);
+            if (value) handleScan(value, true);
           } else if (
             error &&
             !(error instanceof NotFoundException) &&
@@ -235,7 +241,10 @@ const BarcodeScanning = () => {
   useEffect(() => {
     // Start only on a user tap/click. Mobile browsers can reject camera/video
     // playback initiated automatically during page mount.
-    return () => stopScanner();
+    return () => {
+      if (detectionTimerRef.current) window.clearTimeout(detectionTimerRef.current);
+      stopScanner();
+    };
   }, []);
 
   const [imageFrontUrl, setImageFrontUrl] = useState("");
@@ -249,16 +258,29 @@ const BarcodeScanning = () => {
   // BARCODE SCANNER
   // =====================================================
 
-  const handleScan = (barcode) => {
+  const handleScan = (barcode, fromCamera = false) => {
     const cleanBarcode = String(barcode || "").trim();
     if (!cleanBarcode || scanLocked.current || loading) return;
 
     scanLocked.current = true;
     setData(cleanBarcode);
-    stopScanner();
-    setScanning(false);
-
-    getResult(cleanBarcode);
+    if (fromCamera) {
+      // Keep the camera preview visible briefly so the detection feels real.
+      // The lock prevents the decoder from submitting the same code again.
+      setBarcodeDetected(true);
+      setLoading(true);
+      detectionTimerRef.current = window.setTimeout(() => {
+        detectionTimerRef.current = null;
+        stopScanner();
+        setScanning(false);
+        setBarcodeDetected(false);
+        getResult(cleanBarcode);
+      }, SCAN_SUCCESS_ANIMATION_MS);
+    } else {
+      stopScanner();
+      setScanning(false);
+      getResult(cleanBarcode);
+    }
   };
 
   // =====================================================
@@ -562,9 +584,12 @@ const BarcodeScanning = () => {
   };
 
   const resetScan = () => {
+    if (detectionTimerRef.current) window.clearTimeout(detectionTimerRef.current);
+    detectionTimerRef.current = null;
     scanLocked.current = false;
     stopScanner();
     setCameraError("");
+    setBarcodeDetected(false);
     setData("");
     setAiData(null);
     setProductName("");
@@ -629,17 +654,30 @@ const BarcodeScanning = () => {
                     <span className="absolute -right-0.5 -top-0.5 h-9 w-9 rounded-tr-xl border-r-4 border-t-4 border-emerald-300" />
                     <span className="absolute -bottom-0.5 -left-0.5 h-9 w-9 rounded-bl-xl border-b-4 border-l-4 border-emerald-300" />
                     <span className="absolute -bottom-0.5 -right-0.5 h-9 w-9 rounded-br-xl border-b-4 border-r-4 border-emerald-300" />
-                    <span className="absolute left-5 right-5 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,.95)]" />
+                    {cameraReady && !barcodeDetected && (
+                      <span className="veronica-scan-sweep absolute left-5 right-5 h-0.5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,.95)]" />
+                    )}
                   </div>
                 </div>
 
                 <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/60 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
                   {cameraReady ? "Align the product barcode inside the frame" : "Starting camera…"}
                 </div>
+
+                {barcodeDetected && (
+                  <div role="status" aria-live="polite" className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-emerald-950/60 text-white backdrop-blur-[2px]">
+                    <div className="veronica-scan-detected flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/80 bg-emerald-500 shadow-[0_0_44px_rgba(74,222,128,.65)]">
+                      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3" className="h-11 w-11">
+                        <path d="m5 12 5 5L20 7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <p className="veronica-scan-detected text-lg font-bold tracking-wide">Barcode detected!</p>
+                  </div>
+                )}
               </div>
           </div>
 
-          {scanning && (
+          {scanning && !barcodeDetected && (
             <div className="flex w-full flex-col gap-3">
               {cameraReady && availableCameras.length > 1 && (
                 <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700">

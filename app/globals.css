@@ -286,12 +286,41 @@ img {
   }
 }
 
+@keyframes veronica-scan-sweep {
+  0%, 100% { transform: translateY(0); opacity: .55; }
+  50% { transform: translateY(136px); opacity: 1; }
+}
+
+.veronica-scan-sweep {
+  top: 11px;
+  animation: veronica-scan-sweep 2s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes veronica-scan-detected {
+  from { transform: scale(.88); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.veronica-scan-detected {
+  animation: veronica-scan-detected 320ms cubic-bezier(.2, 1.35, .35, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
+  }
+
+  .veronica-scan-sweep {
+    animation: none !important;
+    transform: translateY(68px);
+  }
+
+  .veronica-scan-detected {
+    animation: none !important;
   }
 }
 
