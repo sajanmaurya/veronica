@@ -41,8 +41,8 @@ function formatNumber(value, decimals = 1) {
 }
 
 function getRatingClass(rating) {
-  if (rating >= 7) return "bg-emerald-50/75 text-emerald-700 ring-emerald-200/60";
-  if (rating >= 4) return "bg-amber-50/75 text-amber-700 ring-amber-200/60";
+  if (["A", "B"].includes(rating)) return "bg-emerald-50/75 text-emerald-700 ring-emerald-200/60";
+  if (rating === "C") return "bg-amber-50/75 text-amber-700 ring-amber-200/60";
   return "bg-rose-50/75 text-rose-700 ring-rose-200/60";
 }
 
@@ -219,7 +219,7 @@ export default function PreviousSearchesPage() {
       const signature = [
         search.productName || "Unknown product",
         search.createdAt || "",
-        search.aiData?.rating ?? "",
+        search.aiData?.nutrition_score?.grade ?? "",
       ].join("|");
 
       if (seen.has(signature)) return false;
@@ -561,7 +561,7 @@ export default function PreviousSearchesPage() {
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {visibleSearches.map((search) => {
-                  const rating = Number(search.aiData?.rating) || 0;
+                  const rating = search.aiData?.nutrition_score?.grade || null;
                   const image = search.imageFrontUrl || search.imageNutritionImage || null;
                   const name = search.productName || "Unknown product";
                   const nutrition = getNutrition(search);
@@ -578,7 +578,7 @@ export default function PreviousSearchesPage() {
                             rating
                           )}`}
                         >
-                          {rating}/10
+                          {rating ? `Grade ${rating}` : search.aiData?.nutrition_score ? "Not rated" : "Legacy · rescan"}
                         </div>
                       </div>
 
