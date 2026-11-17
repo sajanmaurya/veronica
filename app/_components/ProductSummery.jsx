@@ -392,7 +392,7 @@ export default function ProductSummary({
                   </span>
                 </div>
                 <p className="mt-1 text-[10px] font-semibold leading-none">
-                  {grade ? "Calculated" : score?.status === "not_applicable" ? "Not applicable" : "Insufficient data"}
+                  {grade ? (score?.status === "grade_only" ? "Grade only" : "Calculated") : score?.status === "not_applicable" ? "Not applicable" : "Insufficient data"}
                 </p>
               </div>
             </div>

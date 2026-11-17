@@ -60,3 +60,13 @@ test('Quick barcode analysis returns a grade without calling optional AI or web 
   else process.env.GROQ_API_KEY=originalKey;
  }
 });
+
+test('Silk Chocolate with missing salt still has a certain E grade, not a fabricated exact score',()=>{
+ const withoutSodium={...n,sodium_mg:null};
+ const r=scoreAnalysis({product_name:'Silk Chocolate',categories:'en:chocolates'},withoutSodium);
+ assert.equal(r.status,'grade_only');
+ assert.equal(r.grade,'E');
+ assert.equal(r.rawScore,null);
+ assert.deepEqual(r.scoreRange,{min:21,max:51});
+ assert.ok(r.missingFields.includes('saltG'));
+});

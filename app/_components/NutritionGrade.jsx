@@ -30,7 +30,7 @@ export default function NutritionGrade({ score }) {
         <table className="mt-3 w-full text-left">
           <thead><tr><th>Component</th><th>Points</th></tr></thead>
           <tbody>
-            {Object.entries(score.breakdown.negative).map(([key,value]) => <tr key={key}><td>{labels[key] || key}</td><td>+{value}</td></tr>)}
+            {Object.entries(score.breakdown.negative).map(([key,value]) => <tr key={key}><td>{labels[key] || key}</td><td>{value == null ? 'Unknown' : `+${value}`}</td></tr>)}
             {Object.entries(score.breakdown.positive).map(([key,value]) => <tr key={key}><td>{labels[key] || key}</td><td>{value == null ? 'Unknown' : `−${value}`}</td></tr>)}
           </tbody>
         </table>
