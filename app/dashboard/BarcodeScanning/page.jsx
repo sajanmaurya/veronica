@@ -15,6 +15,7 @@ import { useUserProfile } from "@/context/UserProfileContext";
 import { getPreferredBarcodeCamera, sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
 import { makeNativeBarcodeDetector, firstDetectedRetailBarcode } from "@/lib/nativeBarcodeDetector.mjs";
 import { usableProductImage } from "@/lib/nutritionDisplay.mjs";
+import { analyzeFoodLabel } from "@/lib/foodLabelUpload.mjs";
 
 const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
@@ -523,29 +524,9 @@ const BarcodeScanning = () => {
 
     setFallbackLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-      formData.append(
-        "profile",
-        JSON.stringify({
-          diseases: profile?.diseases || "",
-          allergies: profile?.allergies || "",
-          dietaryPreferences: profile?.dietaryPreferences || "",
-        })
-      );
-
-      const response = await fetch("/api/analyzeImage", {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json();
-
-      if (!response.ok || !result.success || !result.data) {
-        throw new Error(result.error || "Vision analysis failed.");
-      }
-
-      setAiData(result.data);
-      setProductName(result.data.product_name || "Unknown product");
+      const labelData = await analyzeFoodLabel(file, profile);
+      setAiData(labelData);
+      setProductName(labelData.product_name || "Unknown product");
       setImageFrontUrl(URL.createObjectURL(file));
       setBarcodeNotFound(false);
       toast.success("Label analyzed with Vision AI");
@@ -554,6 +535,7 @@ const BarcodeScanning = () => {
       toast.error(error?.message || "Could not analyze the label.");
     } finally {
       setFallbackLoading(false);
+      event.target.value = "";
     }
   };
 
@@ -569,29 +551,7 @@ const BarcodeScanning = () => {
     setVerifyLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-      formData.append(
-        "profile",
-        JSON.stringify({
-          diseases: profile?.diseases || "",
-          allergies: profile?.allergies || "",
-          dietaryPreferences: profile?.dietaryPreferences || "",
-        })
-      );
-
-      const response = await fetch("/api/analyzeImage", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success || !result.data) {
-        throw new Error(result.error || "Package verification failed.");
-      }
-
-      const scan = result.data;
+      const scan = await analyzeFoodLabel(file, profile);
       const scannedIngredients =
         Array.isArray(scan.ingredients) && scan.ingredients.length > 0;
       const scannedNutrition =

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
+import { analyzeFoodLabel } from "@/lib/foodLabelUpload.mjs";
 import { useUserProfile } from "@/context/UserProfileContext";
 
 const ImageUpload = () => {
@@ -12,10 +13,13 @@ const ImageUpload = () => {
   const [aiData, setAiData] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
-  const [cameraStarting, setCameraStarting] = useState(true);
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadStage, setUploadStage] = useState("");
   const [capturing, setCapturing] = useState(false);
 
   const videoRef = useRef(null);
+  const galleryRef = useRef(null);
   const streamRef = useRef(null);
 
   const { profile } = useUserProfile();
@@ -153,15 +157,7 @@ const ImageUpload = () => {
     }
   };
 
-  useEffect(() => {
-    openCamera();
-
-    return () => {
-      stopCamera();
-    };
-    // Open once when the Upload Food Label page loads.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => () => stopCamera(), []); // Release camera on navigation.
 
   useEffect(() => {
     return () => {
@@ -183,6 +179,7 @@ const ImageUpload = () => {
     setImage(file);
     setPreview(nextPreview);
     setAiData(null);
+    setUploadError("");
     stopCamera();
   };
 
@@ -261,43 +258,23 @@ const ImageUpload = () => {
   };
 
   const handleSubmit = async () => {
-    if (!image) {
-      toast.error("Capture or upload a photo first.");
+    if (!image || loading) {
+      if (!image) toast.error("Capture or upload a photo first.");
       return;
     }
-
+    setUploadError("");
     setLoading(true);
-
     try {
-      const formData = new FormData();
-      formData.append("image", image);
-      formData.append(
-        "profile",
-        JSON.stringify({
-          diseases: profile?.diseases || null,
-          allergies: profile?.allergies || null,
-          dietaryPreferences: profile?.dietaryPreferences || null,
-        })
-      );
-
-      const response = await fetch("/api/analyzeImage", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Unable to analyze the image.");
-      }
-
-      setAiData(data.data);
+      const result = await analyzeFoodLabel(image, profile, {onStage:setUploadStage});
+      setAiData(result);
+      toast.success("Food label analyzed");
     } catch (error) {
-      console.error("Error analyzing image:", error);
-      toast.error(
-        error?.message || "Error analyzing image. Please try again."
-      );
+      console.error("Food label analysis failed:", error);
+      const message = error?.message || "Could not analyze the label. Please try again.";
+      setUploadError(message);
+      toast.error(message);
     } finally {
+      setUploadStage("");
       setLoading(false);
     }
   };
@@ -310,6 +287,7 @@ const ImageUpload = () => {
     setImage(null);
     setPreview(null);
     setAiData(null);
+    setUploadError("");
     await openCamera();
   };
 
@@ -318,6 +296,8 @@ const ImageUpload = () => {
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
         {!aiData && (
           <div className="glass-panel flex w-full max-w-xl flex-col items-center gap-3 p-3 sm:gap-4 sm:p-6">
+            <input ref={galleryRef} type="file" accept="image/*" className="sr-only"
+              onChange={handleGalleryUpload} aria-label="Choose food label photo" />
             {!image ? (
               <>
                 <div className="w-full text-center">
@@ -341,6 +321,15 @@ const ImageUpload = () => {
                   {cameraStarting && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-xs font-semibold text-white/70">
                       Starting camera…
+                    </div>
+                  )}
+
+                  {!cameraActive && !cameraStarting && !cameraError && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <button type="button" onClick={openCamera}
+                        className="liquid-glass-button px-5 py-3 text-sm font-bold text-slate-900">
+                        Start camera
+                      </button>
                     </div>
                   )}
 
@@ -379,18 +368,14 @@ const ImageUpload = () => {
                   <span>{capturing ? "Capturing…" : "Capture"}</span>
                 </button>
 
-                <label className="liquid-glass-button flex w-full cursor-pointer items-center justify-center gap-2 px-5 py-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="liquid-glass-button flex w-full items-center justify-center gap-2 px-5 py-3 text-center"
+                >
                   <span aria-hidden="true">🖼️</span>
-                  <span className="text-xs font-bold text-slate-800 sm:text-sm">
-                    Upload from gallery
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleGalleryUpload}
-                  />
-                </label>
+                  <span className="text-xs font-bold text-slate-800 sm:text-sm">Upload from gallery</span>
+                </button>
               </>
             ) : (
               <>
@@ -409,15 +394,10 @@ const ImageUpload = () => {
                     📷 Retake
                   </button>
 
-                  <label className="liquid-glass-button cursor-pointer px-4 py-3 text-center text-xs font-bold text-slate-800">
+                  <button type="button" onClick={() => galleryRef.current?.click()}
+                    className="liquid-glass-button px-4 py-3 text-center text-xs font-bold text-slate-800">
                     🖼️ Gallery
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleGalleryUpload}
-                    />
-                  </label>
+                  </button>
                 </div>
 
                 <button
@@ -426,10 +406,11 @@ const ImageUpload = () => {
                   className="liquid-glass-button w-full py-4 text-base disabled:pointer-events-none disabled:opacity-50"
                   disabled={loading}
                 >
-                  {loading ? "Analyzing image..." : "Analyze label"}
+                  {loading ? (uploadStage || "Analyzing image…") : "Analyze label"}
                 </button>
               </>
             )}
+            {uploadError && <p role="alert" className="w-full rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{uploadError}</p>}
           </div>
         )}
 
