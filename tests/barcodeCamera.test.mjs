@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sortBarcodeCameras } from '../lib/barcodeCamera.mjs';
+import { getPreferredBarcodeCamera, sortBarcodeCameras } from '../lib/barcodeCamera.mjs';
 
 test('camera choices favor the main rear lens over ultra-wide, telephoto and selfie', () => {
   const devices = [
@@ -22,4 +22,25 @@ test('unlabelled cameras keep their browser-supplied order', () => {
     { deviceId: 'second', label: '' },
   ];
   assert.deepEqual(sortBarcodeCameras(devices), devices);
+  assert.equal(getPreferredBarcodeCamera(devices), null);
+});
+
+test('automatic scanning selects camera zero over a second generic rear lens', () => {
+  const devices = [
+    { deviceId: 'rear2', label: 'Camera 2, facing back' },
+    { deviceId: 'front', label: 'Camera 1, facing front' },
+    { deviceId: 'rear0', label: 'Camera 0, facing back' },
+  ];
+  assert.equal(getPreferredBarcodeCamera(devices)?.deviceId, 'rear0');
+});
+
+test('automatic selection never picks a front-only or known blurry lens', () => {
+  assert.equal(getPreferredBarcodeCamera([
+    { deviceId: 'ultra', label: 'Back Ultra Wide Camera' },
+    { deviceId: 'front', label: 'Front Selfie Camera' },
+  ]), null);
+  assert.equal(getPreferredBarcodeCamera([
+    { deviceId: 'main', label: 'Main Rear Camera' },
+    { deviceId: 'ultra', label: 'Back Ultra Wide Camera' },
+  ])?.deviceId, 'main');
 });

@@ -12,7 +12,7 @@ import {
 import { toast } from "react-toastify";
 import ProductSummery from "@/app/_components/ProductSummery";
 import { useUserProfile } from "@/context/UserProfileContext";
-import { sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
+import { getPreferredBarcodeCamera, sortBarcodeCameras } from "@/lib/barcodeCamera.mjs";
 
 const BARCODE_CACHE_DB = "veronica-barcode-cache-v3";
 const BARCODE_CACHE_STORE = "products";
@@ -88,6 +88,7 @@ const BarcodeScanning = () => {
   const thoroughModeTimerRef = useRef(null);
 
   const { profile } = useUserProfile();
+  const preferredCameraId = getPreferredBarcodeCamera(availableCameras)?.deviceId || "";
 
   const stopScanner = () => {
     // Invalidate camera requests that have not finished yet (permission dialogs,
@@ -123,10 +124,22 @@ const BarcodeScanning = () => {
         throw new Error("Camera access is not supported in this browser.");
       }
 
-      // Prefer the rear camera, but let the user switch physical lenses when
-      // the browser picks a wide-angle camera that cannot focus on barcodes.
-      const preferredVideo = requestedCameraId
-        ? { deviceId: { exact: requestedCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      // Once permission has been granted, Android usually exposes real camera
+      // labels. Select the main rear lens before opening a stream so we don't
+      // accidentally start a blurry ultra-wide or telephoto camera.
+      let cameraId = requestedCameraId;
+      if (!cameraId) {
+        try {
+          const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+          if (generation !== scanGeneration.current) return;
+          cameraId = getPreferredBarcodeCamera(devices)?.deviceId || "";
+        } catch (deviceError) {
+          console.warn("Camera selection will use the browser default:", deviceError);
+        }
+      }
+
+      const preferredVideo = cameraId
+        ? { deviceId: { exact: cameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
         : { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } };
       let stream;
       try {
@@ -135,14 +148,21 @@ const BarcodeScanning = () => {
           video: preferredVideo,
         });
       } catch (error) {
-        // A camera may disappear or reject constraints between scans.
-        if (!["NotFoundError", "OverconstrainedError"].includes(error?.name)) {
+        // If the automatically selected camera became unavailable, retry the
+        // browser's rear-camera default. Never silently replace an explicitly
+        // selected lens with a different one.
+        if (requestedCameraId || !["NotFoundError", "NotReadableError", "OverconstrainedError"].includes(error?.name)) {
           throw error;
         }
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: true,
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: cameraId ? { facingMode: { ideal: "environment" } } : true,
+          });
+        } catch (fallbackError) {
+          if (!["NotFoundError", "OverconstrainedError"].includes(fallbackError?.name)) throw fallbackError;
+          stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        }
       }
 
       if (generation !== scanGeneration.current || scanLocked.current) {
@@ -228,7 +248,7 @@ const BarcodeScanning = () => {
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
         if (generation !== scanGeneration.current) return;
         setAvailableCameras(sortBarcodeCameras(devices));
-        setSelectedCameraId(track?.getSettings?.().deviceId || requestedCameraId || "");
+        setSelectedCameraId(track?.getSettings?.().deviceId || "");
       } catch (deviceError) {
         console.warn("Could not list cameras:", deviceError);
         if (generation === scanGeneration.current) setAvailableCameras([]);
@@ -239,7 +259,9 @@ const BarcodeScanning = () => {
       stopScanner();
       setScanning(false);
       setCameraError(
-        error?.name === "NotAllowedError"
+        requestedCameraId
+          ? "That camera lens could not start. Press Start camera scanner to use the recommended rear lens."
+          : error?.name === "NotAllowedError"
           ? "Camera permission was denied. Allow camera access for Veronica and try again."
           : error?.name === "NotReadableError"
           ? "The camera is being used by another app. Close it and try again."
@@ -693,28 +715,47 @@ const BarcodeScanning = () => {
 
           {scanning && !barcodeDetected && (
             <div className="flex w-full flex-col gap-3">
+              {cameraReady && preferredCameraId && selectedCameraId && selectedCameraId !== preferredCameraId && (
+                <button
+                  type="button"
+                  onClick={() => startScanner(preferredCameraId)}
+                  className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
+                >
+                  Switch to main rear camera (recommended)
+                </button>
+              )}
               {cameraReady && availableCameras.length > 1 && (
-                <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
-                  Camera lens
-                  <select
-                    value={selectedCameraId}
-                    onChange={(event) => startScanner(event.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-slate-900"
-                  >
-                    <option value="">Automatic camera</option>
-                    {availableCameras.map((camera, index) => (
-                      <option value={camera.deviceId} key={camera.deviceId || index}>
-                        {camera.label || `Camera ${index + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <details className="rounded-xl border border-gray-200 bg-white/80 px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                    Change camera (optional)
+                  </summary>
+                  <label className="mt-3 flex flex-col gap-1 text-sm font-semibold text-slate-700">
+                    Camera lens
+                    <select
+                      value={selectedCameraId}
+                      onChange={(event) => startScanner(event.target.value)}
+                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-slate-900"
+                    >
+                      <option value="">Automatic (recommended)</option>
+                      {availableCameras.map((camera, index) => (
+                        <option value={camera.deviceId} key={camera.deviceId || index}>
+                          {camera.deviceId === preferredCameraId
+                            ? `${camera.label || `Camera ${index + 1}`} — main rear (recommended)`
+                            : camera.label || `Camera ${index + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Other lenses can be too blurry for close-up barcodes. Use the recommended main rear camera when possible.
+                  </p>
+                </details>
               )}
               {cameraReady && (
                 <p className="text-center text-xs leading-5 text-slate-500">
                   Hold the barcode steady about 15–25 cm away, in good light.
                   {availableCameras.length > 1
-                    ? " If it stays blurry, try another rear camera lens above."
+                    ? " The main rear camera usually focuses best at this distance."
                     : " If it stays blurry, adjust the distance or enter its numbers below."}
                 </p>
               )}
