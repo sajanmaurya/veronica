@@ -35,3 +35,23 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Validation and database deployment
+
+Use Node.js 22 LTS or newer and run:
+
+```bash
+npm ci
+npm test
+npm run lint
+npm run build
+```
+
+Lint is non-interactive and fails on warnings. The build generates Prisma's
+client and compiles the app; it does not run migrations or require DATABASE_URL.
+Database-backed runtime features still need a valid DATABASE_URL.
+
+Vercel uses `npm run build:deploy` via vercel.json. That command first runs
+`npm run db:deploy` against the configured DATABASE_URL, then builds the app.
+For other hosts, run migrations as an explicit release step before serving the
+new build. Never point a validation job at a production database just to compile.
