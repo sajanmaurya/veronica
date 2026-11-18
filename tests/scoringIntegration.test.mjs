@@ -15,8 +15,23 @@ test('Unknown and excluded products do not fall through to general food',()=>{
  assert.equal(resolveCategory({product_name:'Juice powder'}).category,undefined);
  assert.equal(scoreAnalysis({product_name:'Olive oil'},n).grade,null);
 });
-test('Beverage sweetener uncertainty and conflicting basis withhold grades',()=>{
- assert.equal(scoreAnalysis({product_category:'beverages'},{...n,label_basis:'per_100ml'}).grade,null);
+test('Beverage grade is retained only when all missing-data possibilities agree',()=>{
+ const certain=scoreAnalysis({product_category:'beverages'},{...n,label_basis:'per_100ml'});
+ assert.equal(certain.grade,'E');
+ assert.equal(certain.status,'grade_only');
+ assert.equal(certain.rawScore,null);
+ assert.ok(certain.scoreRange.min>9);
+ assert.ok(certain.missingFields.includes('hasSpecifiedSweeteners'));
+ assert.equal(certain.breakdown.negative.sweeteners,null);
+ const uncertain=scoreAnalysis({product_category:'beverages'}, {
+  label_basis:'per_100ml',calories:0,total_sugar_g:0,saturated_fat_g:0,
+  total_fat_g:0,sodium_mg:0,protein_g:0,carbohydrates_g:0,fiber_g:0,
+ });
+ assert.equal(uncertain.grade,null);
+ assert.equal(uncertain.status,'insufficient_data');
+ assert.ok(uncertain.missingFields.includes('hasSpecifiedSweeteners'));
+});
+test('Conflicting basis withholds the grade',()=>{
  assert.equal(scoreAnalysis(product,{...n,label_basis:'unknown'}).grade,null);
 });
 test('Valid 50g serving is scaled once, never heuristically halved',()=>{
@@ -27,7 +42,7 @@ test('Blocked barcode validation cannot produce a grade',()=>assert.equal(scoreA
 // Import the real API handler with Next aliases resolved, without a web server.
 async function loadBarcodeHandler() {
  let source=await readFile(new URL('../pages/api/analyzeBarcode.js',import.meta.url),'utf8');
- source=source.replace(/"@\/([^\"]+)"/g,(_,path)=>JSON.stringify(new URL('../'+path,import.meta.url).href+(path.endsWith('.mjs')?'':'.js')));
+ source=source.replace(/"@\/([^"]+)"/g,(_,path)=>JSON.stringify(new URL('../'+path,import.meta.url).href+(path.endsWith('.mjs')?'':'.js')));
  return (await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'))).default;
 }
 test('Real barcode handler returns deterministic grade with no AI key',async()=>{
