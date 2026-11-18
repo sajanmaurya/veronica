@@ -52,11 +52,6 @@ function isUnknown(value) {
   return !text || text === "unknown" || text === "n/a" || text === "null";
 }
 
-function finite(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
 function nutritionCount(nutrition) {
   return [
     nutrition.calories,
