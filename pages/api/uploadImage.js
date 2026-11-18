@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       filter: ({ mimetype }) => !!mimetype && mimetype.startsWith("image/"),
     });
 
-    const [fields, files] = await form.parse(req);
+    const [, files] = await form.parse(req);
     const uploadedImage = files.image;
     const imageFile = Array.isArray(uploadedImage) ? uploadedImage[0] : uploadedImage;
 
