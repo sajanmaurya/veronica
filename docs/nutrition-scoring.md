@@ -109,7 +109,7 @@ systems, intentionally not arbitrary penalties in this nutrition calculation.
 
 ## Validation and release limits
 
-14 automated tests pass, including the chocolate case, nutrient boundaries,
+Automated tests cover the chocolate case, nutrient boundaries,
 unit-equivalent inputs, protein exceptions, beverage and fat branches,
 missing-data handling, bad inputs, deterministic input preservation and a
 sugar-monotonicity sweep. Expected values were derived from the published tables.
@@ -142,6 +142,11 @@ the local barcode cache namespace was bumped to prevent stale inputs.
 reviewed taxonomy and sweetener mappings are available, ambiguous categories,
 plain fats/nuts/seeds, and beverages may return no grade. Unknown plant
 percentages remain unknown; this can withhold grades for many products.
+Missing sweetener status contributes an unknown 0–4 point penalty. A beverage
+may still show `grade_only` E if the entire conservative score interval is E;
+the exact score remains null and the missing field remains visible. If the
+interval crosses a grade boundary, no grade is shown. Adapter tests cover both
+cases, matching the numerical scorer's missing-data policy.
 Image analysis still uses AI to transcribe label facts, including category text;
 fixed code alone determines points and grade. Review the source label when
 extracted facts appear wrong. Web-model recovered nutrition is excluded from
