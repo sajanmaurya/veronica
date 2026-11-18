@@ -14,9 +14,9 @@ function cleanJson(text) {
   }
 
   const cleaned = text
-    .replace(/^\s*\`\`\`json\s*/i, "")
-    .replace(/^\s*\`\`\`\s*/i, "")
-    .replace(/\s*\`\`\`\s*$/i, "")
+    .replace(/^\s*```json\s*/i, "")
+    .replace(/^\s*```\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
     .trim();
 
   try {
