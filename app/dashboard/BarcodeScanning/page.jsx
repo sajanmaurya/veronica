@@ -520,14 +520,16 @@ const BarcodeScanning = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    analysisRequestRef.current += 1;
+    const requestId = ++analysisRequestRef.current;
 
     setFallbackLoading(true);
     try {
       const labelData = await analyzeFoodLabel(file, profile);
+      if (requestId !== analysisRequestRef.current) return;
       setAiData(labelData);
       setProductName(labelData.product_name || "Unknown product");
       setImageFrontUrl(URL.createObjectURL(file));
+      setImageNutritionImage("");
       setBarcodeNotFound(false);
       toast.success("Label analyzed with Vision AI");
     } catch (error) {
@@ -545,22 +547,18 @@ const BarcodeScanning = () => {
     if (!file) return;
 
     // A verified package photo must never be overwritten by delayed web data.
-    analysisRequestRef.current += 1;
+    const requestId = ++analysisRequestRef.current;
     setAiData((current) => current ? { ...current, analysis_pending: false } : current);
 
     setVerifyLoading(true);
 
     try {
       const scan = await analyzeFoodLabel(file, profile);
+      if (requestId !== analysisRequestRef.current) return;
       const scannedIngredients =
         Array.isArray(scan.ingredients) && scan.ingredients.length > 0;
-      const scannedNutrition =
-        scan.nutrition &&
-        Object.entries(scan.nutrition).some(
-          ([key, value]) =>
-            !["serving_size", "label_basis", "servings_per_container"].includes(key) &&
-            value != null
-        );
+      const scannedNutrition = Boolean(scan.nutrition_panel?.columns?.length ||
+        scan.nutrition_source === "package_scan");
 
       setAiData((current) => {
         if (!current) return scan;
@@ -581,7 +579,7 @@ const BarcodeScanning = () => {
           : current.ingredients_source || "unavailable";
 
         const nutritionSource = scannedNutrition
-          ? "package_scan"
+          ? scan.nutrition_source
           : current.nutrition_source || "unavailable";
 
         const quantitySource = scan.package_quantity
@@ -605,6 +603,11 @@ const BarcodeScanning = () => {
           ingredients_source: ingredientsSource,
           nutrition: nextNutrition,
           nutrition_source: nutritionSource,
+          ...(scannedNutrition ? {
+            nutrition_panel:scan.nutrition_panel,
+            nutrition_scan_product:{product_category:scan.product_category, product_name:scan.product_name},
+            nutrition_review:null,
+          } : {}),
           nutrition_validation: scannedNutrition
             ? scan.nutrition_validation
             : current.nutrition_validation,
@@ -625,8 +628,8 @@ const BarcodeScanning = () => {
         };
       });
 
-      setImageNutritionImage(URL.createObjectURL(file));
-      toast.success("Package data verified from your photo");
+      if (scannedNutrition) setImageNutritionImage(URL.createObjectURL(file));
+      toast.success("Package photo checked");
     } catch (error) {
       console.error("Package verification failed:", error);
       toast.error(error?.message || "Could not verify the package.");
@@ -886,6 +889,7 @@ const BarcodeScanning = () => {
 
           <ProductSummery
             aiData={aiData}
+            onReview={setAiData}
             productName={productName}
             imageFrontUrl={imageFrontUrl}
             imageNutritionImage={imageNutritionImage}
