@@ -77,3 +77,27 @@ test('barcode lookup separates missing products from network failures', async ()
     console.error = originalConsoleError;
   }
 });
+
+test('the scanned 7622202852589 gets the label-photo fallback for an Open Food Facts HTTP 404', async (t) => {
+  const barcode = '7622202852589';
+  const handler = await loadHandler();
+  t.mock.method(globalThis, 'fetch', async () => Response.json(
+    { code: barcode, status: 0, status_verbose: 'product not found' }, { status: 404 },
+  ));
+  const result = await invoke(handler, barcode);
+  assert.equal(result.statusCode, 404);
+  assert.equal(result.body.code, 'PRODUCT_NOT_FOUND');
+  assert.equal(result.body.success, false);
+});
+
+test('an unexpected 404 page or malformed catalogue result remains a service failure', async (t) => {
+  const handler = await loadHandler();
+  t.mock.method(console, 'error', () => {});
+  const replies = [new Response('<html>Not Found</html>', {status:404}), Response.json({}), Response.json({status:0}, {status:502})];
+  t.mock.method(globalThis, 'fetch', async () => replies.shift());
+  for (let i = 0; i < 3; i++) {
+    const result = await invoke(handler, '7622202852589');
+    assert.equal(result.statusCode, 503);
+    assert.equal(result.body.code, undefined);
+  }
+});
