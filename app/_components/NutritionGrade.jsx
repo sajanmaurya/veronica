@@ -24,12 +24,13 @@ export default function NutritionGrade({ score }) {
           status === 'scored' ? 'All values required for this calculation are available. Check extracted values against the package.' :
           'More reliable label information or a supported product category is needed.'}
       </p>
-      {partial && <p className="mt-2">Counted: {partial.components.map(key => labels[key] || key).join(', ')}</p>}
+      {partial && <p className="mt-2">Counted: {Object.entries(partial.contributions).map(([key, points]) =>
+        `${labels[key] || key} (${points > 0 ? '+' : ''}${points})`).join(', ')}</p>}
       {score?.rawScore != null && <p className="mt-2">Raw score: {score.rawScore}</p>}
       {status === 'grade_only' && <p className="mt-2">Possible raw score: {score.scoreRange.min}–{score.scoreRange.max}</p>}
       {score?.missingFields?.length > 0 && <p className="mt-2">Missing: {score.missingFields.map(key => labels[key] || key).join(', ')}</p>}
       {score?.issues?.map((issue, i) => <p className="mt-1" key={i}>{issue}</p>)}
-      {score?.breakdown?.negative && (
+      {!partial && score?.breakdown?.negative && (
         <table className="mt-3 w-full text-left">
           <thead><tr><th>Component</th><th>Points</th></tr></thead>
           <tbody>

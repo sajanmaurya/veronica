@@ -51,7 +51,7 @@ test('A missing value must not mutate the original product input',()=>{
 test('partial grade counts measured components, preserves true zero and bounds the full grade', () => {
   const observed = score({...base, nutrients: { sugarsG: 40 }});
   assert.equal(observed.grade, null);
-  assert.deepEqual(observed.partialRating, { grade: 'D', points: 11, components: ['sugars'], bestGrade: 'B', worstGrade: 'E' });
+  assert.deepEqual(observed.partialRating, { grade: 'D', points: 11, contributions: {sugars: 11}, bestGrade: 'B', worstGrade: 'E' });
   const zero = score({...base, nutrients: { sugarsG: 0 }});
   assert.equal(zero.partialRating.grade, 'A');
   assert.equal(zero.partialRating.points, 0);
