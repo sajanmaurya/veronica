@@ -50,6 +50,7 @@ const cleanFoodData = (product) => ({
   serving_quantity: product.serving_quantity || "Unknown",
   serving_quantity_unit: product.serving_quantity_unit || "Unknown",
 
+  nutrition_data_per: product.nutrition_data_per || null,
   nutrients_per_100g: Object.fromEntries(
     Object.entries(product.nutriments || {})
       .filter(([key]) => key.endsWith("_100g"))

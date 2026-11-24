@@ -1,6 +1,8 @@
 "use client";
 
 import LabelColumnReview from "./LabelColumnReview";
+import { displayNutritionScore } from "@/lib/nutritionScoring.mjs";
+import { profileWarnings } from "@/lib/dietaryProfile.mjs";
 import NutritionGrade from "./NutritionGrade";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -323,37 +325,12 @@ export default function ProductSummary({
   if (!aiData) return null;
 
   const nutrition = aiData.nutrition || {};
-  const score = aiData.nutrition_score;
-  const grade = score?.grade || null;
+  const score = displayNutritionScore(aiData.nutrition_score);
+  const partial = score?.partialRating;
+  const grade = score?.grade || partial?.grade || null;
   const gradeColor = { A: "bg-emerald-700", B: "bg-lime-700", C: "bg-amber-700", D: "bg-orange-700", E: "bg-red-700" }[grade] || "bg-slate-600";
 
-  const allergies = String(profile?.allergies || "")
-    .split(/[,;]+/)
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-
-  const ingredientText = visibleIngredients.join(" ").toLowerCase();
-
-  const allergyWarnings = allergies.filter(
-    (item) => item && ingredientText.includes(item)
-  );
-
-  const dietaryPreferences = String(profile?.dietaryPreferences || "").toLowerCase();
-  const dietaryWarnings = [];
-
-  if (
-    dietaryPreferences.includes("vegan") &&
-    /(milk|whey|casein|gelatin|egg|honey|meat|chicken|fish)/i.test(ingredientText)
-  ) {
-    dietaryWarnings.push("Possible non-vegan ingredient");
-  }
-
-  if (
-    dietaryPreferences.includes("vegetarian") &&
-    /(gelatin|meat|chicken|beef|pork|fish|anchovy)/i.test(ingredientText)
-  ) {
-    dietaryWarnings.push("Possible non-vegetarian ingredient");
-  }
+  const { allergyWarnings, dietaryWarnings } = profileWarnings(profile, aiData);
 
   const visibleName = [productName, aiData.product_name].find(
     (name) => typeof name === "string" && name.trim() && !/^unknown(?: product)?$/i.test(name.trim()),
@@ -391,7 +368,7 @@ export default function ProductSummary({
 
               <div className={`shrink-0 rounded-2xl ${gradeColor} px-3 py-2.5 text-right text-white`}>
                 <p className="text-[8px] font-bold uppercase tracking-[.12em] text-emerald-100">
-                  Nutrition grade
+                  {partial ? "Partial grade" : "Nutrition grade"}
                 </p>
                 <div className="mt-0.5 flex items-end justify-end gap-0.5">
                   <span className="text-2xl font-semibold leading-none tracking-[-.05em]">
@@ -399,7 +376,7 @@ export default function ProductSummary({
                   </span>
                 </div>
                 <p className="mt-1 text-[10px] font-semibold leading-none">
-                  {grade ? (score?.status === "grade_only" ? "Grade only" : "Calculated") : score?.status === "not_applicable" ? "Not applicable" : "Insufficient data"}
+                  {partial ? `Possible ${partial.bestGrade}–${partial.worstGrade}` : grade ? (score?.status === "grade_only" ? "Grade only" : "Calculated") : score?.status === "not_applicable" ? "Not applicable" : "Insufficient data"}
                 </p>
               </div>
             </div>
@@ -519,9 +496,12 @@ export default function ProductSummary({
               {aiData.summary || "No summary was returned."}
             </p>
 
-            {(allergyWarnings.length > 0 || dietaryWarnings.length > 0) && (
+            {(profile?.allergies || dietaryWarnings.length > 0) && (
               <div className="mt-4 rounded-2xl bg-amber-50 p-4">
                 <p className="text-xs font-bold text-amber-900">For your profile</p>
+                {Boolean(profile?.allergies) && <p className="mt-1 text-xs text-amber-900">
+                  Check the package’s allergen and “may contain” statements. A scan can miss a warning.
+                </p>}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {allergyWarnings.map((item) => (
                     <span

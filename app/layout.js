@@ -32,11 +32,11 @@ export default function RootLayout({ children }) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
   const content = (
-    <UserProfileProvider>
       <html lang="en">
         <body
           className={`${spaceMono.variable} ${geistMono.variable} antialiased`}
         >
+          <UserProfileProvider clerkEnabled={Boolean(publishableKey)}>
           <Header clerkEnabled={Boolean(publishableKey)} />
           <ServiceWorkerRegistration />
 
@@ -44,9 +44,9 @@ export default function RootLayout({ children }) {
             <ToastContainer />
             {children}
           </div>
+          </UserProfileProvider>
         </body>
       </html>
-    </UserProfileProvider>
   );
 
   // Allow Vercel preview builds without Clerk's public key to prerender

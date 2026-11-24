@@ -20,6 +20,7 @@ model UserProfile {
   email           String
   diseases        String?
   allergies       String?
+  dietaryPreferences String?
   createdAt       DateTime        @default(now())
   
   productSearches ProductSearch[] // <-- add this back-relation array field

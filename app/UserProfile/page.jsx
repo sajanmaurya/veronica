@@ -1,122 +1,102 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUserProfile } from "@/context/UserProfileContext";
+import { readDeviceProfile, useUserProfile } from "@/context/UserProfileContext";
+import { allergyChoices, allergyList, dietChoices, dietParts } from "@/lib/dietaryProfile.mjs";
 import { toast } from "react-toastify";
 
-const UserProfile = () => {
-  const { profile, setProfile } = useUserProfile();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [diseases, setDiseases] = useState("");
-  const [allergies, setAllergies] = useState("");
-  const [dietaryPreferences, setDietaryPreferences] = useState("");
+function formValues(profile) {
+  const { diet, other } = dietParts(profile.dietaryPreferences);
+  const allergies = allergyList(profile.allergies);
+  return { name: profile.name || "", email: profile.email || "", diseases: profile.diseases || "",
+    diet, other, selected: allergies.filter(item => allergyChoices.includes(item)),
+    custom: allergies.filter(item => !allergyChoices.includes(item)).join(", ") };
+}
 
+const choiceStyle = "flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white/60 px-3 py-2 text-sm has-[:checked]:border-emerald-700 has-[:checked]:bg-emerald-50";
+
+function ProfileForm({profile, saveProfile, signedIn}) {
+  const [form, setForm] = useState(() => formValues(profile));
+  const [saving, setSaving] = useState(false);
+  const [device, setDevice] = useState(null);
   useEffect(() => {
-    if (profile) {
-      setName(profile.name || "");
-      setEmail(profile.email || "");
-      setDiseases(profile.diseases || "");
-      setAllergies(profile.allergies || "");
-      setDietaryPreferences(profile.dietaryPreferences || "");
+    if (signedIn && !profile.dietaryPreferences && !profile.allergies) {
+      const old = readDeviceProfile();
+      if (old?.dietaryPreferences || old?.allergies) setDevice(old);
     }
-  }, [profile]);
-
-  const handleSave = async () => {
+  }, [signedIn, profile.dietaryPreferences, profile.allergies]);
+  function change(key, value) { setForm(prev => ({...prev, [key]: value})); }
+  async function submit(event) {
+    event.preventDefault();
+    setSaving(true);
     try {
-      const updatedProfile = {
-        ...profile,
-        name: name.trim() || "Guest User",
-        email: email.trim() || "guest@example.com",
-        diseases,
-        allergies,
-        dietaryPreferences,
-      };
-
-      localStorage.setItem("veronica-profile", JSON.stringify(updatedProfile));
-      setProfile(updatedProfile);
-      toast.success("Profile updated");
-    } catch (error) {
-      toast.error("Failed to update profile");
-    }
-  };
-
-  return (
-    <div className="app-canvas flex items-center justify-center">
-      <div className="glass-panel w-full max-w-xl p-6 sm:p-8">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-300 via-lime-400 to-emerald-600 text-2xl font-bold text-white shadow-lg shadow-emerald-900/15">
-            ♥
-          </div>
-          <h2 className="text-3xl font-semibold tracking-[-.04em] text-slate-900">Health Profile</h2>
-        </div>
-
-        <div className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="Enter your name"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Diseases</label>
-            <input
-              type="text"
-              value={diseases}
-              onChange={(e) => setDiseases(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="e.g. Diabetes, Hypertension"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Dietary preferences</label>
-            <input
-              type="text"
-              value={dietaryPreferences}
-              onChange={(e) => setDietaryPreferences(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="e.g. Vegetarian, Vegan, Gluten-free"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Allergies</label>
-            <input
-              type="text"
-              value={allergies}
-              onChange={(e) => setAllergies(e.target.value)}
-              className="glass-input mt-1 block"
-              placeholder="e.g. Peanuts, Gluten"
-            />
-          </div>
-
-          <button
-            onClick={handleSave}
-            className="liquid-glass-button mt-2 w-full py-4 text-base"
-          >
-            Save Profile
-          </button>
-        </div>
+      const allergies = allergyList([...form.selected, form.custom].join(", ")).join(", ");
+      await saveProfile({
+        name: form.name.trim() || "Guest User", email: form.email.trim() || "guest@example.com",
+        diseases: form.diseases.trim(), allergies,
+        dietaryPreferences: [form.diet, form.other.trim()].filter(Boolean).join(", "),
+      });
+      setDevice(null);
+      toast.success("Profile saved");
+    } catch { toast.error("Could not save your profile. Please try again."); }
+    finally { setSaving(false); }
+  }
+  return <form onSubmit={submit} className="space-y-5">
+    {device && <button type="button" className="text-sm underline" onClick={() => {
+      const {diet, other, selected, custom} = formValues(device);
+      setForm(prev => ({...prev, diet, other, selected, custom}));
+      setDevice(null);
+    }}>Use diet and allergies previously saved on this device</button>}
+    {[
+      ["name", "Name", "text"], ["email", "Email", "email"], ["diseases", "Health conditions", "text"],
+    ].map(([key, title, type]) => <label className="block text-sm font-semibold text-slate-700" key={key}>
+      {title}<input type={type} maxLength={2000} className="glass-input mt-1 block"
+        value={form[key]} onChange={event => change(key, event.target.value)} />
+    </label>)}
+    <fieldset>
+      <legend className="mb-2 text-sm font-semibold text-slate-700">Dietary preference</legend>
+      <div className="flex flex-wrap gap-2">
+        {[[ "", "No preference" ], ...dietChoices].map(([value, label]) =>
+          <label key={label} className={choiceStyle}>
+            <input type="radio" name="diet" value={value} checked={form.diet === value}
+              onChange={() => change("diet", value)} />{label}
+          </label>)}
       </div>
-    </div>
-  );
-};
+      <p className="mt-2 text-xs text-slate-600">Veg allows dairy and excludes eggs. Vegan also excludes dairy and honey.</p>
+    </fieldset>
+    {form.other && <label className="block text-sm font-semibold text-slate-700">
+      Other saved dietary preferences<input className="glass-input mt-1 block" value={form.other}
+        onChange={event => change("other", event.target.value)} />
+    </label>}
+    <fieldset>
+      <legend className="mb-2 text-sm font-semibold text-slate-700">Allergies</legend>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {allergyChoices.map(item => <label key={item} className={choiceStyle}>
+          <input type="checkbox" checked={form.selected.includes(item)} onChange={event => {
+            const checked = event.target.checked;
+            setForm(prev => ({...prev, selected: checked ? [...prev.selected, item] : prev.selected.filter(v => v !== item)}));
+          }} />{item}
+        </label>)}
+      </div>
+      <label className="mt-3 block text-sm text-slate-700">Other allergies (separate with commas)
+        <input className="glass-input mt-1 block" value={form.custom} maxLength={1800}
+          onChange={event => change("custom", event.target.value)} />
+      </label>
+    </fieldset>
+    <button disabled={saving} className="liquid-glass-button w-full py-4 text-base">
+      {saving ? "Saving…" : "Save profile"}
+    </button>
+  </form>;
+}
 
-export default UserProfile;
+export default function UserProfile() {
+  const context = useUserProfile();
+  return <div className="app-canvas flex items-center justify-center">
+    <section className="glass-panel w-full max-w-xl p-6 sm:p-8">
+      <h1 className="mb-5 text-3xl font-semibold text-slate-900">Health profile</h1>
+      {context.loading ? <p role="status">Loading profile…</p> : context.loadError ?
+        <div role="alert">Could not load your profile. <button className="underline" onClick={context.retry}>Try again</button></div>
+        : <ProfileForm {...context} />}
+    </section>
+  </div>;
+}
