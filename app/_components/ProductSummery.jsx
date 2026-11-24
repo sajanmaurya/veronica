@@ -355,8 +355,13 @@ export default function ProductSummary({
     dietaryWarnings.push("Possible non-vegetarian ingredient");
   }
 
+  const visibleName = [productName, aiData.product_name].find(
+    (name) => typeof name === "string" && name.trim() && !/^unknown(?: product)?$/i.test(name.trim()),
+  );
   const topNutrition = [
-    ["Sugar", "added_sugar_g", nutrition.added_sugar_g ?? nutrition.total_sugar_g, "g"],
+    nutrition.total_sugar_g != null
+      ? ["Total sugars", "total_sugar_g", nutrition.total_sugar_g, "g"]
+      : ["Added sugars", "added_sugar_g", nutrition.added_sugar_g, "g"],
     ["Protein", "protein_g", nutrition.protein_g, "g"],
     ["Sodium", "sodium_mg", nutrition.sodium_mg, "mg"],
     nutrition.energy_kj != null ? ["Energy", "energy_kj", nutrition.energy_kj, "kJ"] : ["Calories", "calories", nutrition.calories, "kcal"],
@@ -375,7 +380,7 @@ export default function ProductSummary({
                   Analysis complete
                 </p>
                 <h1 className="mt-1 line-clamp-2 text-lg font-semibold leading-tight tracking-[-.03em] text-slate-950 sm:text-2xl">
-                  {productName || aiData.product_name || "Unknown product"}
+                  {visibleName || (aiData.nutrition_panel?.columns?.length ? "Scanned food label" : "Unknown product")}
                 </h1>
                 {aiData.product_category && aiData.product_category !== "Unknown" && (
                   <p className="mt-1 truncate text-[11px] text-slate-500">
