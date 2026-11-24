@@ -11,3 +11,13 @@ test("processed nuts require verified >50 percent contents",()=>{assert.deepEqua
 test("red meat mixes require verified at least 20 percent",()=>{assert.deepEqual(c("en:meatballs"),{});assert.equal(c("en:meatballs",{red_meat_percent:20}).category,"red_meat");assert.equal(c("en:meatballs",{red_meat_percent:19.9}).category,"general");});
 test("unverified ingredient words do not select scoring category",()=>{assert.deepEqual(resolveCategory({product_name:"Olive oil"}),{});assert.deepEqual(resolveCategory({product_name:"Milk chocolate"}),{});assert.equal(c("en:chocolates",{product_name:"Milk chocolate"}).category,"general");});
 test("excluded and preparation-dependent foods withheld",()=>{assert.equal(c("en:infant-formulas").eligibility,"ineligible");assert.equal(resolveCategory({product_name:"Baby cereal",categories:"en:cereals"}).eligibility,"ineligible");assert.deepEqual(c("en:drink-powders,en:beverages"),{});});
+
+test("match complete category names while preserving beverage and eligibility rules", () => {
+  assert.equal(c("Milk chocolate").category, "general");
+  assert.equal(c("Chocolate milk").category, "beverage");
+  assert.equal(c("en:Chocolate_Wafer").category, "general");
+  assert.deepEqual(c("chocolate drink mix,beverages"), {});
+  assert.deepEqual(c("unclassified chocolate mix"), {});
+  assert.deepEqual(resolveCategory({ ingredients: ["chocolate"] }), {});
+  assert.equal(c("chocolate,infant-formulas").eligibility, "ineligible");
+});

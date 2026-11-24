@@ -295,6 +295,16 @@ test("US wrapper uses the 32 g serving, preserving rounded pack values and bound
   }
 });
 
+test("the same photographed wrapper scores identically under its observed category names", () => {
+  for (const product_category of ["Snacks", "chocolates", "chocolate", "Chocolate bar"]) {
+    const result = analyzeLabelColumns({ ...snack, product_category }, usPanel);
+    assert.equal(result.nutrition_validation.status, "extracted");
+    assert.equal(result.nutrition_score.category, "general", product_category);
+    assert.equal(result.nutrition_score.grade, "E", product_category);
+    assert.equal(result.nutrition_score.rawScore, null);
+  }
+});
+
 test("household portions require exactly one positive metric serving", () => {
   for (const size of ["3 fingers", "2 pieces (20 g or 30 g)", "42g / 100g", "32 g (16 g)", "1 bar (0 g)"]) {
     const result = analyzeLabelColumns(snack, { ...usPanel, serving_size: size });
