@@ -36,15 +36,25 @@ function cleanJson(text) {
   }
 }
 
+const transcriptionProperties = {
+  is_food_product: { type: "boolean" },
+  product_name: { type: "string" },
+  product_category: { type: "string" },
+  nutrition: labelSchema,
+};
+const transcriptionSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: transcriptionProperties,
+  required: Object.keys(transcriptionProperties),
+};
+
 const foodAnalysisSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    is_food_product: { type: "boolean" },
-    product_name: { type: "string" },
-    product_category: { type: "string" },
+    ...transcriptionProperties,
     package_quantity: { type: ["string", "null"] },
-    nutrition: labelSchema,
     ingredients: {
       type: "array",
       items: { type: "string" },
@@ -206,7 +216,7 @@ Read only information that is actually visible in the image. Carefully inspect:
 - Major ingredients worth highlighting
 - Nutrition Facts
 - Serving size
-- The exact nutrition-panel basis: whether the values are "per serving", "per 100 g", or "per 100 ml"
+- The exact nutrition-panel basis: whether the values are "per serving", "per container", "per 100 g", or "per 100 ml"
 - Calories
 - Total fat
 - Saturated fat
@@ -266,6 +276,7 @@ IMPORTANT DATA RULES:
 - "is_food_product" must be false for unrelated images such as laptops, phones, people, rooms, vehicles, scenery, animals, or non-food documents.
 - Never assign a health rating to a non-food image.
 - Transcribe every visible nutrition column separately, in printed order, with its exact heading. Include any % daily intake or RDA column with its original heading. Use an empty columns array when there is no readable panel.
+- If a Nutrition Facts table repeats its headers side by side for different nutrient rows, combine the rows under their matching headers. Keep per serving, per container and % Daily Value quantities separate. A bare number under Calories is in kcal. Leave energy with no printed unit or Calories heading null.
 - Include the printed number, decimal precision, unit, and any inequality in each cell (e.g. "910 kJ", "6.20 g", "≤17.17 g"). Units or limits printed on the row or table heading apply to that cell. Keep unreadable cells null. Never borrow a number from a neighbouring column.
 - Transcribe energy in its printed unit: use energy_kj for kJ, calories for kcal or food Calories. If both are printed, transcribe each. Never convert or calculate either. Distinguish salt from sodium and total sugars from added sugars.
 - Return the explicit weight or volume of one serving (e.g. "42 g"), or null. Do not substitute pack weight. Return panel_box as [left,top,right,bottom] on a 0–1000 scale relative to the uploaded image, or null when uncertain.
@@ -289,52 +300,88 @@ Return data matching the supplied JSON schema.
     const imageDataUrl =
       `data:${imageFile.mimetype || "image/jpeg"};base64,${imageBuffer.toString("base64")}`;
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
+    const request = {
+      model: MODEL_NAME,
+      reasoning_effort: "none",
+      temperature: 0.2,
+      max_completion_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: prompt,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageDataUrl,
+              },
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "food_analysis",
+          strict: true,
+          schema: foodAnalysisSchema,
+        },
+      },
+    };
+    const readLabel = async (payload) => {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          model: MODEL_NAME,
-          reasoning_effort: "none",
-          temperature: 0.2,
-          max_completion_tokens: 4096,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: prompt,
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: imageDataUrl,
-                  },
-                },
-              ],
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "food_analysis",
-              strict: true,
-              schema: foodAnalysisSchema,
-            },
-          },
-        }),
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      return { response, result, data: response.ok ? cleanJson(result?.choices?.[0]?.message?.content) : null };
+    };
+    let { response, result, data } = await readLabel(request);
+    let label = data?.is_food_product ? analyzeLabelColumns(data, data.nutrition) : null;
+    const formatError = response.status === 400 && (result?.error?.code === "json_validate_failed" ||
+      /failed to generate json/i.test(result?.error?.message || ""));
+    if (formatError || (response.ok && !data) || label?.nutrition_validation.status === "needs_verification") {
+      // A second, smaller request reads the nutrition table in isolation. Keep the
+      // original analysis if the second transcription also needs verification.
+      const focused = await readLabel({
+        ...request,
+        temperature: 0,
+        messages: [{ role: "user", content: [
+          { type: "text", text: `Read only the printed nutrition table. Return is_food_product false for a non-food image. Use the visible product name or "Unknown product" and a simple category such as Snacks, Biscuits or Beverages only when supported.
+Copy all legible quantity columns, distinguishing per serving, per 100 g/ml, and per container. If headers repeat for different rows, combine the rows for each heading. Keep %DV out of quantities. Use one column per quantity basis. Preserve printed units and inequalities. A number printed under Calories is kcal. Do not calculate values or infer missing units. Copy the metric weight or volume of one serving, preserving any household measure. Use null for unreadable cells and an empty columns array only if no quantity column is legible.` },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ] }],
+        response_format: { type: "json_schema", json_schema: {
+          name: "nutrition_transcription", strict: true, schema: transcriptionSchema,
+        } },
+      }).catch(() => null);
+      const recovered = focused?.data;
+      if (recovered && !data) {
+        ({ response, result } = focused);
+        data = { ingredients: [], major_ingredients: [], harmful_ingredients: [], ingredient_explanations: [],
+          package_quantity: null, summary: "", user_specific_summary: "", ...recovered };
+        label = data.is_food_product ? analyzeLabelColumns(data, data.nutrition) : null;
+      } else if (data && recovered?.is_food_product) {
+        const candidate = { ...data, nutrition: recovered.nutrition };
+        if (!candidate.product_category || candidate.product_category === "Unknown") candidate.product_category = recovered.product_category;
+        const checked = analyzeLabelColumns(candidate, candidate.nutrition);
+        if (checked.nutrition_validation.status === "extracted" ||
+            (!data.nutrition?.columns?.length && candidate.nutrition?.columns?.length)) {
+          data = candidate;
+          label = checked;
+        }
       }
-    );
-
-    const result = await response.json();
+    }
 
     if (!response.ok) {
-      console.error("Groq API error:", result);
+      console.error("Image provider rejected the request:", response.status, result?.error?.code);
 
       const groqMessage =
         result?.error?.message ||
@@ -354,11 +401,6 @@ Return data matching the supplied JSON schema.
       });
     }
 
-    const text =
-      result?.choices?.[0]?.message?.content || "";
-
-    const data = cleanJson(text);
-
     if (!data) {
       return res.status(502).json({
         success: false,
@@ -376,7 +418,7 @@ Return data matching the supplied JSON schema.
       });
     }
 
-    Object.assign(data, analyzeLabelColumns(data, data.nutrition));
+    Object.assign(data, label);
     data.ingredients_source =
       Array.isArray(data.ingredients) && data.ingredients.length
         ? "package_scan"

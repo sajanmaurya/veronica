@@ -107,7 +107,7 @@ export default function LabelColumnReview({ data, photo, onReview }) {
           >
             <option value="">Choose a column</option>
             {columns.map((c, i) => (
-              <option key={i} value={i} disabled={printedBasis(c.heading) === "percentage"}>
+              <option key={i} value={i} disabled={["percentage", "per_container"].includes(printedBasis(c.heading))}>
                 {c.heading || "Unreadable heading"} (column {i + 1})
               </option>
             ))}

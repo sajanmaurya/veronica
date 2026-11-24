@@ -201,18 +201,10 @@ test("the photo API turns the model transcription into a deterministic grade", a
   const originalFetch = globalThis.fetch;
   try {
     process.env.GROQ_API_KEY = "fixture";
-    globalThis.fetch = async (_url, options) => {
-      const request = JSON.parse(options.body);
-      assert.deepEqual(request.response_format.json_schema.schema.properties.nutrition, labelSchema);
-      const transcription = {
-        ...chocolate,
-        is_food_product: true,
-        nutrition: kitkat,
-        ingredients: [],
-        rating: 10,
-      };
-      return Response.json({ choices: [{ message: { content: JSON.stringify(transcription) } }] });
+    const transcription = {
+      ...chocolate, is_food_product: true, nutrition: kitkat, ingredients: [], rating: 10,
     };
+    const completion = (data) => Response.json({ choices: [{ message: { content: JSON.stringify(data) } }] });
     const form = new FormData();
     form.append(
       "image",
@@ -221,25 +213,37 @@ test("the photo API turns the model transcription into a deterministic grade", a
     );
     const http = new Request("http://localhost/api/analyzeImage", { method: "POST", body: form });
     const bytes = Buffer.from(await http.arrayBuffer());
-    const req = Object.assign(Readable.from([bytes]), {
-      method: "POST",
-      headers: { "content-type": http.headers.get("content-type"), "content-length": String(bytes.length) },
-    });
-    const res = {
-      status(code) {
-        this.code = code;
-        return this;
-      },
-      json(body) {
-        this.body = body;
-      },
-    };
-    await handler(req, res);
-    assert.equal(res.code, 200);
-    assert.equal(res.body.data.rating, null);
-    assert.equal(res.body.data.nutrition_score.grade, "E");
-    assert.equal(res.body.data.nutrition.energy_kj, 2160);
-    assert.equal(res.body.data.nutrition_panel.columns.length, 3);
+    for (const first of ["success", "format error", "empty panel"]) {
+      let attempts = 0;
+      globalThis.fetch = async (_url, options) => {
+        const request = JSON.parse(options.body);
+        assert.deepEqual(request.response_format.json_schema.schema.properties.nutrition, labelSchema);
+        if (++attempts === 1) {
+          if (first === "success") return completion(transcription);
+          if (first === "empty panel") return completion({ ...transcription, nutrition: { columns: [] }, ingredients: ["cocoa"] });
+          return Response.json({ error: { code: "json_validate_failed" } }, { status: 400 });
+        }
+        assert.equal(request.temperature, 0);
+        assert.equal(request.response_format.json_schema.name, "nutrition_transcription");
+        return completion(transcription);
+      };
+      const req = Object.assign(Readable.from([bytes]), {
+        method: "POST",
+        headers: { "content-type": http.headers.get("content-type"), "content-length": String(bytes.length) },
+      });
+      const res = {
+        status(code) { this.code = code; return this; },
+        json(body) { this.body = body; },
+      };
+      await handler(req, res);
+      assert.equal(attempts, first === "success" ? 1 : 2);
+      assert.equal(res.code, 200);
+      assert.equal(res.body.data.rating, null);
+      assert.equal(res.body.data.nutrition_score.grade, "E");
+      assert.equal(res.body.data.nutrition.energy_kj, 2160);
+      assert.equal(res.body.data.nutrition_panel.columns.length, 3);
+      if (first === "empty panel") assert.deepEqual(res.body.data.ingredients, ["cocoa"]);
+    }
   } finally {
     globalThis.fetch = originalFetch;
     if (oldKey === undefined) delete process.env.GROQ_API_KEY;
@@ -258,4 +262,62 @@ test("barcode rejects contradictory kJ and kcal before issuing a grade", () => {
   });
   assert.equal(result.status, "needs_verification");
   assert.ok(result.invalid_fields.includes("energy_kj"));
+});
+
+const usServing = {
+  heading: "Per serving", calories: "160", total_fat_g: "8g", saturated_fat_g: "5g",
+  trans_fat_g: "0g", carbohydrates_g: "21g", fiber_g: "<1g", total_sugar_g: "17g",
+  added_sugar_g: "16g", protein_g: "1g", sodium_mg: "15mg",
+};
+const usContainer = {
+  heading: "Per container", calories: "420", total_fat_g: "22g", saturated_fat_g: "13g",
+  trans_fat_g: "0g", carbohydrates_g: "57g", fiber_g: "2g", total_sugar_g: "46g",
+  added_sugar_g: "43g", protein_g: "4g", sodium_mg: "40mg",
+};
+const usPanel = {
+  serving_size: "3 fingers (32g)", servings_per_container: 2.5,
+  columns: [usServing, usContainer],
+};
+const snack = { product_name: "Unknown product", product_category: "Snacks" };
+test("US wrapper uses the 32 g serving, preserving rounded pack values and bounded fibre", () => {
+  for (const columns of [usPanel.columns, [usContainer, percentage, usServing]]) {
+    const result = analyzeLabelColumns(snack, { ...usPanel, columns });
+    assert.equal(result.nutrition_validation.status, "extracted", result.nutrition_validation.message);
+    assert.equal(result.nutrition.label_basis, "per_serving");
+    assert.equal(result.nutrition.calories, 160);
+    assert.equal(result.nutrition_score.normalized.energyKcal, 500);
+    assert.equal(result.nutrition_score.normalized.sugarsG, 53.125);
+    assert.equal(result.nutrition_score.normalized.saturatedFatG, 15.625);
+    assert.equal(result.nutrition.fiber_g, null);
+    assert.equal(result.nutrition_panel.columns.find(c => c.heading === "Per container").calories, "420");
+    assert.equal(result.nutrition_score.grade, "E");
+    assert.equal(result.nutrition_score.rawScore, null);
+  }
+});
+
+test("household portions require exactly one positive metric serving", () => {
+  for (const size of ["3 fingers", "2 pieces (20 g or 30 g)", "42g / 100g", "32 g (16 g)", "1 bar (0 g)"]) {
+    const result = analyzeLabelColumns(snack, { ...usPanel, serving_size: size });
+    assert.equal(result.nutrition_validation.status, "needs_verification", size);
+    assert.equal(result.nutrition_score.grade, null);
+  }
+  for (const size of ["32 g (3 fingers)", "3 fingers (32 g)", "32g"]) {
+    assert.equal(analyzeLabelColumns(snack, { ...usPanel, serving_size: size }).nutrition_score.grade, "E");
+  }
+  const drink = analyzeLabelColumns({ product_category: "beverages" },
+    { columns: [{ heading: "Per serving", total_sugar_g: "0 g", calories: "0 Calories" }], serving_size: "1 cup (240 ml)" });
+  assert.equal(drink.nutrition_score.normalized.sugarsG, 0);
+});
+test("rejects pack-only, substituted quantities, and non-calorie unitless values", () => {
+  for (const columns of [
+    [usContainer], [usContainer, percentage],
+    [usServing, { ...usContainer, total_sugar_g: "17g" }],
+    [{ ...usContainer, heading: "Per serving" }, { ...usServing, heading: "Per container" }],
+    [{ ...usServing, calories: "160%" }], [{ ...usServing, calories: "160 kJ" }],
+    [{ ...usServing, sodium_mg: "15" }],
+  ]) {
+    assert.equal(analyzeLabelColumns(snack, { ...usPanel, columns }).nutrition_validation.status, "needs_verification");
+  }
+  const review = { column: usContainer, basis: "per_serving", serving_size: "32g" };
+  assert.equal(analyzeLabelColumns(snack, usPanel, review).nutrition_score.grade, null);
 });
