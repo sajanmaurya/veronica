@@ -69,6 +69,7 @@ function nutritionToProductShape(nutrition) {
 
   return {
     "energy-kcal": nutrition.calories,
+    "energy-kj": nutrition.energy_kj,
     fat: nutrition.total_fat_g,
     "saturated-fat": nutrition.saturated_fat_g,
     "trans-fat": nutrition.trans_fat_g,

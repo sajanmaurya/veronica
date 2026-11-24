@@ -1,4 +1,4 @@
-import { scoringFields } from "@/lib/scoringAdapter.mjs";
+import { analyzeLabelColumns, labelSchema } from "@/lib/labelColumns.mjs";
 
 export const config = {
   api: {
@@ -44,43 +44,7 @@ const foodAnalysisSchema = {
     product_name: { type: "string" },
     product_category: { type: "string" },
     package_quantity: { type: ["string", "null"] },
-    nutrition: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        serving_size: { type: ["string", "null"] },
-        label_basis: {
-          type: "string",
-          enum: ["per_serving", "per_100g", "per_100ml", "unknown"],
-        },
-        servings_per_container: { type: ["number", "null"] },
-        calories: { type: ["number", "null"] },
-        total_fat_g: { type: ["number", "null"] },
-        saturated_fat_g: { type: ["number", "null"] },
-        trans_fat_g: { type: ["number", "null"] },
-        carbohydrates_g: { type: ["number", "null"] },
-        fiber_g: { type: ["number", "null"] },
-        total_sugar_g: { type: ["number", "null"] },
-        added_sugar_g: { type: ["number", "null"] },
-        protein_g: { type: ["number", "null"] },
-        sodium_mg: { type: ["number", "null"] },
-      },
-      required: [
-        "serving_size",
-        "label_basis",
-        "servings_per_container",
-        "calories",
-        "total_fat_g",
-        "saturated_fat_g",
-        "trans_fat_g",
-        "carbohydrates_g",
-        "fiber_g",
-        "total_sugar_g",
-        "added_sugar_g",
-        "protein_g",
-        "sodium_mg",
-      ],
-    },
+    nutrition: labelSchema,
     ingredients: {
       type: "array",
       items: { type: "string" },
@@ -301,9 +265,10 @@ IMPORTANT DATA RULES:
 
 - "is_food_product" must be false for unrelated images such as laptops, phones, people, rooms, vehicles, scenery, animals, or non-food documents.
 - Never assign a health rating to a non-food image.
-- Report the nutrition-panel basis in "label_basis" exactly from the visible label.
-- If the panel is per 100 g or per 100 ml, do NOT pretend those numbers are per serving.
-- Transcribe the label values and basis exactly. Never convert, infer, or correct the measurement basis. Report serving_size as grams or millilitres only when printed, otherwise null.
+- Transcribe every visible nutrition column separately, in printed order, with its exact heading. Include any % daily intake or RDA column with its original heading. Use an empty columns array when there is no readable panel.
+- Include the printed number, decimal precision, unit, and any inequality in each cell (e.g. "910 kJ", "6.20 g", "≤17.17 g"). Units or limits printed on the row or table heading apply to that cell. Keep unreadable cells null. Never borrow a number from a neighbouring column.
+- Transcribe energy in its printed unit: use energy_kj for kJ, calories for kcal or food Calories. If both are printed, transcribe each. Never convert or calculate either. Distinguish salt from sodium and total sugars from added sugars.
+- Return the explicit weight or volume of one serving (e.g. "42 g"), or null. Do not substitute pack weight. Return panel_box as [left,top,right,bottom] on a 0–1000 scale relative to the uploaded image, or null when uncertain.
 - Never silently change values because they "seem healthy" or "seem reasonable".
 - Do NOT estimate or guess nutrition numbers.
 - If a nutrition value cannot be read confidently, return null.
@@ -392,8 +357,6 @@ Return data matching the supplied JSON schema.
     const text =
       result?.choices?.[0]?.message?.content || "";
 
-    console.log("Groq Qwen image analysis:", text);
-
     const data = cleanJson(text);
 
     if (!data) {
@@ -413,20 +376,9 @@ Return data matching the supplied JSON schema.
       });
     }
 
-    Object.assign(data, scoringFields(data, data.nutrition));
-    data.nutrition_validation = {
-      status: data.nutrition_score.status === "invalid_input" ? "needs_verification" : "extracted",
-      message: data.nutrition_score.issues?.join(" ") || "Values transcribed from the label; check against the package.",
-      basis: data.nutrition?.label_basis || "unknown",
-    };
+    Object.assign(data, analyzeLabelColumns(data, data.nutrition));
     data.ingredients_source =
       Array.isArray(data.ingredients) && data.ingredients.length
-        ? "package_scan"
-        : "unavailable";
-    data.nutrition_source =
-      ["calories", "total_sugar_g", "saturated_fat_g", "sodium_mg"].some(
-        (key) => typeof data.nutrition?.[key] === "number"
-      )
         ? "package_scan"
         : "unavailable";
     data.data_sources = {

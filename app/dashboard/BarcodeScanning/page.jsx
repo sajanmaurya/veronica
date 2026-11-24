@@ -156,6 +156,7 @@ const BarcodeScanning = () => {
     const generation = scanGeneration.current;
     setCameraError("");
     setScanning(true);
+    setLookupIssue(null);
     setBarcodeDetected(false);
     setAvailableCameras([]);
     setSelectedCameraId("");
@@ -329,7 +330,7 @@ const BarcodeScanning = () => {
   const [imageFrontUrl, setImageFrontUrl] = useState("");
   const [imageNutritionImage, setImageNutritionImage] = useState("");
   const [productName, setProductName] = useState("");
-  const [barcodeNotFound, setBarcodeNotFound] = useState(false);
+  const [lookupIssue, setLookupIssue] = useState(null);
   const [fallbackLoading, setFallbackLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
 
@@ -379,7 +380,7 @@ const BarcodeScanning = () => {
 
       const cleanBarcode = String(barcode).trim();
 
-      setBarcodeNotFound(false);
+      setLookupIssue(null);
 
       const cachedProduct = await getCachedBarcode(cleanBarcode);
       let response;
@@ -391,22 +392,19 @@ const BarcodeScanning = () => {
         const result = await fetch(
           `/api/scanBarcode/${encodeURIComponent(cleanBarcode)}`
         );
-        response = await result.json();
-        if (!result.ok && result.status !== 404) {
-          throw new Error(response.error || "The food database is temporarily unavailable. Please try again.");
+        response = await result.json().catch(() => null);
+        if (requestId !== analysisRequestRef.current) return;
+        if (result.status === 404 && (response?.code === "PRODUCT_NOT_FOUND" || response?.error === "Product not found")) {
+          setLookupIssue({ kind: "missing", barcode: cleanBarcode });
+          scanLocked.current = false;
+          return;
+        }
+        if (!result.ok || !response?.success || !response.data) {
+          throw new Error(response?.error || "Veronica could not retrieve the product. Please try again.");
         }
       }
 
       if (requestId !== analysisRequestRef.current) return;
-
-      console.log("Barcode API Response:", response);
-
-      if (!response.success || !response.data) {
-        setBarcodeNotFound(true);
-        scanLocked.current = false;
-        toast.info("Product not in the barcode database. You can scan its label instead.");
-        return;
-      }
 
       // Offline caching is best-effort; do not hold up the product result.
       void cacheBarcode(cleanBarcode, response.data);
@@ -427,15 +425,17 @@ const BarcodeScanning = () => {
       // Show verified barcode nutrition first; extra research never blocks it.
       await analyzeProduct(
         product,
-        requestId
+        requestId,
+        cleanBarcode
       );
 
     } catch (error) {
       console.error("Error fetching product:", error);
+      if (requestId !== analysisRequestRef.current) return;
       scanLocked.current = false;
-      toast.error(error?.message || "Something went wrong while fetching the product.");
+      setLookupIssue({ kind: "error", barcode: String(barcode).trim(), message: error?.message });
     } finally {
-      setLoading(false);
+      if (requestId === analysisRequestRef.current) setLoading(false);
     }
   };
 
@@ -443,7 +443,7 @@ const BarcodeScanning = () => {
   // Fast deterministic analysis, followed by optional background enrichment.
   // =====================================================
 
-  const analyzeProduct = async (product, requestId) => {
+  const analyzeProduct = async (product, requestId, barcode) => {
     try {
       setLoading(true);
 
@@ -505,10 +505,11 @@ const BarcodeScanning = () => {
       }
     } catch (error) {
       console.error("Error analyzing barcode product:", error);
-      if (requestId === analysisRequestRef.current) scanLocked.current = false;
-      toast.error(error?.message || "Something went wrong while analyzing the product.");
+      if (requestId !== analysisRequestRef.current) return;
+      scanLocked.current = false;
+      setLookupIssue({ kind: "error", barcode, message: "The product was found, but its nutrition result could not be loaded." });
     } finally {
-      setLoading(false);
+      if (requestId === analysisRequestRef.current) setLoading(false);
     }
   };
 
@@ -520,15 +521,17 @@ const BarcodeScanning = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    analysisRequestRef.current += 1;
+    const requestId = ++analysisRequestRef.current;
 
     setFallbackLoading(true);
     try {
       const labelData = await analyzeFoodLabel(file, profile);
-      setAiData(labelData);
+      if (requestId !== analysisRequestRef.current) return;
+      setAiData({ ...labelData, barcode: lookupIssue?.barcode || labelData.barcode });
       setProductName(labelData.product_name || "Unknown product");
       setImageFrontUrl(URL.createObjectURL(file));
-      setBarcodeNotFound(false);
+      setImageNutritionImage("");
+      setLookupIssue(null);
       toast.success("Label analyzed with Vision AI");
     } catch (error) {
       console.error("Vision fallback failed:", error);
@@ -545,22 +548,18 @@ const BarcodeScanning = () => {
     if (!file) return;
 
     // A verified package photo must never be overwritten by delayed web data.
-    analysisRequestRef.current += 1;
+    const requestId = ++analysisRequestRef.current;
     setAiData((current) => current ? { ...current, analysis_pending: false } : current);
 
     setVerifyLoading(true);
 
     try {
       const scan = await analyzeFoodLabel(file, profile);
+      if (requestId !== analysisRequestRef.current) return;
       const scannedIngredients =
         Array.isArray(scan.ingredients) && scan.ingredients.length > 0;
-      const scannedNutrition =
-        scan.nutrition &&
-        Object.entries(scan.nutrition).some(
-          ([key, value]) =>
-            !["serving_size", "label_basis", "servings_per_container"].includes(key) &&
-            value != null
-        );
+      const scannedNutrition = Boolean(scan.nutrition_panel?.columns?.length ||
+        scan.nutrition_source === "package_scan");
 
       setAiData((current) => {
         if (!current) return scan;
@@ -581,7 +580,7 @@ const BarcodeScanning = () => {
           : current.ingredients_source || "unavailable";
 
         const nutritionSource = scannedNutrition
-          ? "package_scan"
+          ? scan.nutrition_source
           : current.nutrition_source || "unavailable";
 
         const quantitySource = scan.package_quantity
@@ -605,6 +604,11 @@ const BarcodeScanning = () => {
           ingredients_source: ingredientsSource,
           nutrition: nextNutrition,
           nutrition_source: nutritionSource,
+          ...(scannedNutrition ? {
+            nutrition_panel:scan.nutrition_panel,
+            nutrition_scan_product:{product_category:scan.product_category, product_name:scan.product_name},
+            nutrition_review:null,
+          } : {}),
           nutrition_validation: scannedNutrition
             ? scan.nutrition_validation
             : current.nutrition_validation,
@@ -625,8 +629,8 @@ const BarcodeScanning = () => {
         };
       });
 
-      setImageNutritionImage(URL.createObjectURL(file));
-      toast.success("Package data verified from your photo");
+      if (scannedNutrition) setImageNutritionImage(URL.createObjectURL(file));
+      toast.success("Package photo checked");
     } catch (error) {
       console.error("Package verification failed:", error);
       toast.error(error?.message || "Could not verify the package.");
@@ -643,6 +647,8 @@ const BarcodeScanning = () => {
     scanLocked.current = false;
     stopScanner();
     setCameraError("");
+    setLookupIssue(null);
+    setLoading(false);
     setBarcodeDetected(false);
     setData("");
     setAiData(null);
@@ -800,12 +806,19 @@ const BarcodeScanning = () => {
             </button>
           )}
 
-          {barcodeNotFound && !aiData && (
+          {lookupIssue && !aiData && (
             <div className="w-full rounded-3xl border border-emerald-200/70 bg-emerald-50/70 p-5 text-center shadow-sm">
-              <p className="text-base font-bold text-slate-900">Barcode not found</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                No product record was returned. Photograph the ingredients or nutrition label and Veronica will analyze it with Vision AI.
-              </p>
+              <div role="status">
+                <p className="text-base font-bold text-slate-900">
+                  {lookupIssue.kind === "missing" ? "Product not listed in Open Food Facts" : "Could not load the product"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {lookupIssue.kind === "missing"
+                    ? `Barcode ${lookupIssue.barcode} was read successfully.`
+                    : lookupIssue.message || "The food database could not be reached."}
+                  {" "}Photograph the nutrition label to continue.
+                </p>
+              </div>
               <label className="liquid-glass-button mt-4 inline-flex cursor-pointer items-center justify-center px-5 py-3 text-sm font-bold">
                 {fallbackLoading ? "Analyzing label..." : "Analyze the product label"}
                 <input
@@ -817,6 +830,12 @@ const BarcodeScanning = () => {
                   disabled={fallbackLoading}
                 />
               </label>
+              {lookupIssue.kind === "error" && (
+                <button type="button" onClick={() => handleScan(lookupIssue.barcode)} disabled={fallbackLoading || loading}
+                  className="liquid-glass-button ml-2 px-5 py-2 text-sm font-semibold">
+                  Retry lookup
+                </button>
+              )}
               <button
                 type="button"
                 onClick={resetScan}
@@ -886,6 +905,7 @@ const BarcodeScanning = () => {
 
           <ProductSummery
             aiData={aiData}
+            onReview={setAiData}
             productName={productName}
             imageFrontUrl={imageFrontUrl}
             imageNutritionImage={imageNutritionImage}

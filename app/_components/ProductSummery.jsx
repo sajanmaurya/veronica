@@ -1,5 +1,6 @@
 "use client";
 
+import LabelColumnReview from "./LabelColumnReview";
 import NutritionGrade from "./NutritionGrade";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -202,6 +203,7 @@ export default function ProductSummary({
   productName,
   imageFrontUrl,
   imageNutritionImage,
+  onReview,
 }) {
   const { user } = useUser();
   const { profile } = useUserProfile();
@@ -357,7 +359,7 @@ export default function ProductSummary({
     ["Sugar", "added_sugar_g", nutrition.added_sugar_g ?? nutrition.total_sugar_g, "g"],
     ["Protein", "protein_g", nutrition.protein_g, "g"],
     ["Sodium", "sodium_mg", nutrition.sodium_mg, "mg"],
-    ["Calories", "calories", nutrition.calories, "kcal"],
+    nutrition.energy_kj != null ? ["Energy", "energy_kj", nutrition.energy_kj, "kJ"] : ["Calories", "calories", nutrition.calories, "kcal"],
   ];
 
   return (
@@ -431,6 +433,14 @@ export default function ProductSummary({
               </div>
             )}
 
+            {aiData.nutrition_panel && onReview && (
+              <LabelColumnReview key={imageNutritionImage || imageFrontUrl} data={aiData}
+                photo={imageNutritionImage || imageFrontUrl} onReview={onReview} />
+            )}
+            {aiData.nutrition_validation?.status === "user_checked" && (
+              <p className="mt-2 text-xs text-emerald-800">Calculated from the column you checked.</p>
+            )}
+
             <div className="mt-5">
               <div className="flex items-end justify-between gap-3">
                 <div>
@@ -460,7 +470,7 @@ export default function ProductSummary({
                           {label}
                         </p>
 
-                        {key !== "calories" && (
+                        {key !== "calories" && key !== "energy_kj" && (
                           <span
                             className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold uppercase ${toneBadge[status.tone]}`}
                           >

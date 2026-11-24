@@ -110,7 +110,7 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!response.ok) {
+    if (!response.ok && response.status !== 404) {
       console.error("Open Food Facts request failed:", response.status);
       return res.status(503).json({
         success: false,
@@ -120,12 +120,17 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    if (data.status === 1 && data.product) {
+    // Open Food Facts returns status 0 for a missing product, including with HTTP 404.
+    if (data.status === 0) {
+      return res.status(404).json({ success: false, code: "PRODUCT_NOT_FOUND", error: "Product not found" });
+    }
+
+    if (response.ok && data.status === 1 && data.product) {
       const cleanedData = cleanFoodData(data.product);
       console.log("Open Food Facts product retrieved:", barcode);
       res.status(200).json({ success: true, data: cleanedData });
     } else {
-      res.status(404).json({ success: false, error: "Product not found" });
+      res.status(503).json({ success: false, error: "The food database returned an unexpected response. Please try again." });
     }
   } catch (error) {
     console.error("Error fetching product details:", error);
