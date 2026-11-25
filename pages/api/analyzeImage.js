@@ -238,7 +238,7 @@ Tasks:
 
 2. Do not generate any rating, score, grade, or consumption-frequency recommendation. The server calculates nutrition grades using fixed rules.
 
-3. Classify the product into a concise broad food category such as chips, biscuits, cereals, yogurt, dairy, beverages, sauces, frozen foods, snacks, or another specific category supported by the package. Do not invent a category.
+3. Set product_category to the most specific food type visible on the package (for example, chocolate wafer bar, milk chocolate, biscuits, or yogurt). Use a broad category such as snacks only when that is all the package supports.
 
 4. Identify concerning or potentially harmful ingredients. Do not call an ingredient harmful merely because it is unfamiliar. Explain the relevant concern.
 

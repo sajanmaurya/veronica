@@ -64,32 +64,46 @@ function currentPer100g(product) {
   return null;
 }
 
-function categoryTag(product) {
-  const source = product?.categories || product?.product_category || "";
-  const categories = String(source).split(",").map((item) => item.trim()).filter(Boolean);
-  const useful = categories.map((item) => item.replace(/^en:/i, "")).filter((item) => item && item !== "foods");
-  return useful[useful.length - 1] || useful[useful.length - 2] || null;
+// A scan may identify only a parent category. Those tags span unrelated
+// products, so a shared parent alone is insufficient for a comparison.
+const broadCategories = new Set([
+  "unknown", "unknown-product", "other", "miscellaneous", "food", "foods",
+  "food-products", "packaged-foods", "foods-and-beverages", "plant-based-foods",
+  "plant-based-foods-and-beverages", "snacks", "sweet-snacks", "salty-snacks",
+  "savoury-snacks", "desserts", "confectioneries", "beverages", "dairies", "frozen-foods",
+]);
+
+const categoryAliases = new Map([
+  ["snack", "snacks"], ["sweet-snack", "sweet-snacks"], ["salty-snack", "salty-snacks"],
+  ["beverage", "beverages"], ["drink", "beverages"], ["drinks", "beverages"],
+  ["dairy", "dairies"], ["frozen", "frozen-foods"], ["dessert", "desserts"],
+  ["confectionery", "confectioneries"], ["chocolate", "chocolates"],
+  ["chocolate-bar", "chocolate-bars"], ["milk-chocolate", "milk-chocolates"],
+  ["dark-chocolate", "dark-chocolates"], ["white-chocolate", "white-chocolates"],
+  ["chocolate-wafer-bar", "candy-chocolate-bars-filled-with-wafer"],
+  ["chocolate-wafer-bars", "candy-chocolate-bars-filled-with-wafer"],
+  ["chocolate-wafer", "wafers"], ["chocolate-wafers", "wafers"], ["wafer", "wafers"],
+  ["biscuit", "biscuits"], ["cookies", "biscuits"], ["cookie", "biscuits"],
+  ["potato-chips", "potato-crisps"], ["chips", "crisps"],
+  ["cereals", "breakfast-cereals"], ["yogurt", "yogurts"], ["yoghurt", "yogurts"],
+  ["yoghurts", "yogurts"],
+]);
+
+function categoryTags(value) {
+  const tags = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
+  return tags.filter(tag => typeof tag === "string").map(tag => {
+    const slug = tag.trim().toLowerCase().replace(/^en:/, "").replace(/[\s_]+/g, "-");
+    return categoryAliases.get(slug) || slug;
+  }).filter(tag => tag && !tag.includes(":") && !broadCategories.has(tag));
 }
 
-function normalizeCategoryTag(value) {
-  const raw = String(value || "").toLowerCase().trim().replace(/^en:/, "");
-  const aliases = {
-    "potato chips": "chips-and-fries",
-    chips: "chips-and-fries",
-    crisps: "chips-and-fries",
-    biscuits: "biscuits",
-    cookies: "biscuits",
-    cereals: "breakfast-cereals",
-    yogurt: "yogurts",
-    yoghurt: "yogurts",
-    dairy: "dairies",
-    beverages: "beverages",
-    drinks: "beverages",
-    snacks: "snacks",
-    sauces: "sauces",
-    frozen: "frozen-foods",
-  };
-  return aliases[raw] || raw;
+function comparisonCategory(product) {
+  for (const field of [product.categories_tags, product.categories_tags_en, product.categories, product.product_category]) {
+    // Open Food Facts lists parents first and more specific categories last.
+    const tag = categoryTags(field).at(-1);
+    if (tag) return tag;
+  }
+  return null;
 }
 
 function categoryBucket(product) {
@@ -113,7 +127,7 @@ function normalizedCandidate(product) {
     brand: product?.brands || "",
     image: product?.image_front_url || product?.image_url || null,
     nutriscore: product?.nutriscore_grade || null,
-    categories: Array.isArray(product?.categories_tags_en) ? product.categories_tags_en : [],
+    categories: [...new Set([...categoryTags(product?.categories_tags), ...categoryTags(product?.categories_tags_en)])],
     ingredients: product?.ingredients_text || product?.ingredients_text_en || "",
     allergens: [...(Array.isArray(product?.allergens_tags) ? product.allergens_tags : []), ...(Array.isArray(product?.traces_tags) ? product.traces_tags : [])].join(" "),
     nutrients: {
@@ -189,12 +203,12 @@ export default async function handler(req, res) {
     if (!product) return res.status(400).json({ success: false, message: "Product data is required." });
     const current = currentPer100g(product);
     if (!current) return res.status(200).json({ success: true, data: { alternatives: [], message: "Not enough nutrition information is available to compare alternatives reliably." } });
-    const category = normalizeCategoryTag(categoryTag(product));
-    if (!category) return res.status(200).json({ success: true, data: { alternatives: [], message: "Veronica could not identify a sufficiently specific product category." } });
+    const category = comparisonCategory(product);
+    if (!category) return res.status(200).json({ success: true, data: { alternatives: [], message: "The scan needs a more specific product type to find comparable alternatives." } });
 
     const params = new URLSearchParams({
-      categories_tags_en: category, page: "1", page_size: "24", sort_by: "popularity_key",
-      fields: "code,product_name,product_name_en,brands,image_front_url,nutriscore_grade,nutriments,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,categories_tags_en",
+      categories_tags_en: category.replace(/-/g, " "), page: "1", page_size: "24", sort_by: "popularity_key",
+      fields: "code,product_name,product_name_en,brands,image_front_url,nutriscore_grade,nutriments,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,categories_tags,categories_tags_en",
     });
     const response = await fetch(OFF_BASE_URL + "/api/v2/search?" + params.toString(), { headers: { "User-Agent": OFF_USER_AGENT } });
     if (!response.ok) throw new Error("Open Food Facts search failed with HTTP " + response.status);
@@ -203,7 +217,8 @@ export default async function handler(req, res) {
     const currentBarcode = String(product?.barcode || product?.code || "");
     const bucket = categoryBucket(product);
     const ranked = candidates
-      .filter((candidate) => candidate.barcode && candidate.barcode !== currentBarcode)
+      .filter((candidate) => candidate.categories.includes(category))
+      .filter((candidate) => candidate.barcode && String(candidate.barcode) !== currentBarcode)
       .filter((candidate) => candidate.name && candidate.name !== "Unknown product")
       .filter((candidate) => Object.values(candidate.nutrients).some((value) => value != null))
       .filter((candidate) => !preferenceConflict(candidate, profile))

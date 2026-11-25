@@ -211,6 +211,7 @@ export default function ProductSummary({
   const [error, setError] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
   const [alternativesLoading, setAlternativesLoading] = useState(false);
+  const [alternativesMessage, setAlternativesMessage] = useState("");
   const historySaveRef = useRef(null);
   const historyUpdateQueueRef = useRef(Promise.resolve());
   const lastSavedAnalysisRef = useRef(null);
@@ -221,7 +222,12 @@ export default function ProductSummary({
     async function loadAlternatives() {
       // Recommendations are optional; wait until the background enrichment is
       // done so the same product does not trigger duplicate external searches.
-      if (!aiData || aiData.analysis_pending) return;
+      setAlternatives([]);
+      setAlternativesMessage("");
+      if (!aiData || aiData.analysis_pending) {
+        setAlternativesLoading(false);
+        return;
+      }
       setAlternativesLoading(true);
 
       try {
@@ -240,7 +246,9 @@ export default function ProductSummary({
         const result = await response.json();
 
         if (!cancelled && response.ok && result.success) {
-          setAlternatives(result.data?.alternatives || []);
+          const items = result.data?.alternatives || [];
+          setAlternatives(items);
+          if (!items.length) setAlternativesMessage(result.data?.message || "");
         }
       } catch (err) {
         console.error("Could not load alternatives:", err);
@@ -722,7 +730,7 @@ export default function ProductSummary({
               </div>
             </details>
 
-            {(alternativesLoading || alternatives.length > 0) && (
+            {(alternativesLoading || alternatives.length > 0 || alternativesMessage) && (
             <div className="mt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -732,7 +740,9 @@ export default function ProductSummary({
                   <h2 className="mt-1 text-base font-semibold text-slate-950">
                     Options to compare
                   </h2>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Per-100 g nutrient comparisons, not an overall health ranking. Verify the product labels.</p>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                    {alternativesMessage || "Nutrients per 100 g for products of the same type."}
+                  </p>
                 </div>
                 {alternativesLoading && (
                   <span className="text-[10px] text-slate-400">Loading…</span>
