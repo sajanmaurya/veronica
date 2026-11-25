@@ -1,5 +1,7 @@
 "use client";
 
+import { displayNutritionScore } from "@/lib/nutritionScoring.mjs";
+
 import { useEffect, useMemo, useState } from "react";
 
 const REFERENCE = {
@@ -561,7 +563,8 @@ export default function PreviousSearchesPage() {
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {visibleSearches.map((search) => {
-                  const rating = search.aiData?.nutrition_score?.grade || null;
+                  const score = displayNutritionScore(search.aiData?.nutrition_score);
+                  const rating = score?.grade || score?.partialRating?.grade || null;
                   const image = search.imageFrontUrl || search.imageNutritionImage || null;
                   const name = search.productName || "Unknown product";
                   const nutrition = getNutrition(search);
@@ -578,7 +581,7 @@ export default function PreviousSearchesPage() {
                             rating
                           )}`}
                         >
-                          {rating ? `Grade ${rating}` : search.aiData?.nutrition_score ? "Not rated" : "Legacy · rescan"}
+                          {score?.partialRating ? `Partial ${rating}` : rating ? `Grade ${rating}` : search.aiData?.nutrition_score ? "Not rated" : "Legacy · rescan"}
                         </div>
                       </div>
 

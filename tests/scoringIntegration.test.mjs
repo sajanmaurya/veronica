@@ -85,3 +85,15 @@ test('Silk Chocolate with missing salt still has a certain E grade, not a fabric
  assert.deepEqual(r.scoreRange,{min:21,max:51});
  assert.ok(r.missingFields.includes('saltG'));
 });
+
+test('barcode accepts sparse food and explicitly per-100ml beverage records', async () => {
+ const handler = await loadBarcodeHandler();
+ for (const [category, field, expected] of [['chocolate','nutrients_per_100g','D'], ['beverages','nutrients_per_100ml','E']]) {
+  const res = {status(code) {this.code=code;return this;}, json(body) {this.body=body;}};
+  await handler({method:'POST',body:{quick:true, product:{categories:category, [field]:{sugars:40}}}},res);
+  assert.equal(res.code,200);
+  assert.equal(res.body.data.nutrition_score.grade,null);
+  assert.equal(res.body.data.nutrition_score.partialRating.grade,expected);
+  assert.equal(res.body.data.nutrition_source,'open_food_facts');
+ }
+});

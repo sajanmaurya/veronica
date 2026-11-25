@@ -47,3 +47,26 @@ test('A missing value must not mutate the original product input',()=>{
  const product=make({energyKj:null,energyKcal:543,sugarsG:55.3,saturatedFatG:21.5,saltG:null});
  const before=JSON.stringify(product);score(product);assert.equal(JSON.stringify(product),before);
 });
+
+test('partial grade counts measured components, preserves true zero and bounds the full grade', () => {
+  const observed = score({...base, nutrients: { sugarsG: 40 }});
+  assert.equal(observed.grade, null);
+  assert.deepEqual(observed.partialRating, { grade: 'D', points: 11, contributions: {sugars: 11}, bestGrade: 'B', worstGrade: 'E' });
+  const zero = score({...base, nutrients: { sugarsG: 0 }});
+  assert.equal(zero.partialRating.grade, 'A');
+  assert.equal(zero.partialRating.points, 0);
+  assert.equal(zero.normalized.saltG, null);
+  for (const input of [
+    {...base, nutrients: {}}, {...base, nutrients: {carbohydratesG: 20}},
+    {...base, nutrients: {sugarsG: -8}}, {...base, eligibility: 'ineligible'}, {...base, basis: 'unknown'},
+  ]) assert.equal(score(input).partialRating, undefined);
+});
+
+test('replays an older saved partial scan without modifying the saved object', async () => {
+  const {displayNutritionScore} = await import('../lib/nutritionScoring.mjs');
+  const {partialRating, ...older} = score({...base, nutrients: {sugarsG: 40}});
+  older.category = 'general';
+  assert.deepEqual(displayNutritionScore(older).partialRating, partialRating);
+  assert.equal(older.partialRating, undefined);
+  assert.equal(displayNutritionScore(null), null);
+});

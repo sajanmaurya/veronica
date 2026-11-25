@@ -1,31 +1,30 @@
+import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/app/utils/prisma";
 
 export default async function handler(req, res) {
-  const userId = req.query.userId || req.body?.userId || "guest-user";
+  const { userId } = getAuth(req);
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!userId) return res.status(401).json({ error: "Sign in to access your profile." });
+  if (!["GET", "POST"].includes(req.method)) return res.status(405).end();
 
-  if (req.method === "POST") {
-    const { name, email, diseases, allergies } = req.body || {};
-
-    const existingProfile = await prisma.userProfile.findUnique({
-      where: { userId },
+  try {
+    if (req.method === "GET") {
+      return res.status(200).json(await prisma.userProfile.findUnique({ where: {userId} }));
+    }
+    const data = {};
+    for (const key of ["name", "email", "diseases", "allergies", "dietaryPreferences"]) {
+      if (!Object.hasOwn(req.body || {}, key)) continue;
+      const value = req.body[key];
+      if (typeof value !== "string" || value.length > 2000)
+        return res.status(400).json({ error: "Invalid profile field." });
+      data[key] = value.trim();
+    }
+    const saved = await prisma.userProfile.upsert({
+      where: {userId}, update: data,
+      create: {name: "Guest User", email: "guest@example.com", ...data, userId},
     });
-
-    const profile = existingProfile
-      ? await prisma.userProfile.update({
-          where: { userId },
-          data: { name, email, diseases, allergies },
-        })
-      : await prisma.userProfile.create({
-          data: { userId, name, email, diseases, allergies },
-        });
-
-    return res.status(200).json(profile);
+    return res.status(200).json(saved);
+  } catch {
+    return res.status(500).json({error: "Could not access your profile. Please try again."});
   }
-
-  if (req.method === "GET") {
-    const profile = await prisma.userProfile.findUnique({ where: { userId } });
-    return res.status(200).json(profile || { userId, name: "Guest User", email: "guest@example.com", diseases: "", allergies: "" });
-  }
-
-  return res.status(405).json({ error: "Method not allowed" });
 }

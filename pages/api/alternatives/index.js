@@ -1,3 +1,4 @@
+import { profileWarnings } from "../../../lib/dietaryProfile.mjs";
 const OFF_BASE_URL = "https://world.openfoodfacts.org";
 const OFF_USER_AGENT = "Veronica/1.0 (healthy alternatives; https://veronica-steel.vercel.app)";
 
@@ -129,23 +130,8 @@ function normalizedCandidate(product) {
 }
 
 function preferenceConflict(candidate, profile) {
-  const text = [candidate.ingredients, candidate.allergens].join(" ").toLowerCase();
-  const preferences = String(profile?.dietaryPreferences || "").toLowerCase();
-  const allergies = String(profile?.allergies || "").split(/[,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);
-  const known = {
-    peanut: /peanut|groundnut/, nuts: /almond|cashew|hazelnut|walnut|pistachio|nut/,
-    milk: /milk|whey|casein|lactose/, egg: /egg|albumin/, soy: /soy|soya/,
-    gluten: /wheat|barley|rye|malt|gluten/, fish: /fish|anchovy|tuna|salmon/,
-    shellfish: /shrimp|prawn|crab|lobster|shellfish/,
-  };
-  for (const allergy of allergies) {
-    const pattern = known[allergy];
-    if (pattern ? pattern.test(text) : text.includes(allergy)) return true;
-  }
-  if (/vegan/.test(preferences) && /milk|whey|casein|gelatin|egg|honey|meat|chicken|fish|anchovy/.test(text)) return true;
-  if (/vegetarian/.test(preferences) && /gelatin|meat|chicken|beef|pork|fish|anchovy/.test(text)) return true;
-  if (/gluten[- ]?free/.test(preferences) && /wheat|barley|rye|malt|gluten/.test(text)) return true;
-  return false;
+  const {allergyWarnings, dietaryWarnings} = profileWarnings(profile, candidate);
+  return allergyWarnings.length > 0 || dietaryWarnings.length > 0;
 }
 
 function scoreCandidate(current, candidate, bucket) {

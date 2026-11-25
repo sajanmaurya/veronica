@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 async function loadHandler() {
-  const source = await readFile(new URL("../pages/api/alternatives/index.js", import.meta.url), "utf8");
+  const source = (await readFile(new URL("../pages/api/alternatives/index.js", import.meta.url), "utf8"))
+    .replace("../../../lib/dietaryProfile.mjs", new URL("../lib/dietaryProfile.mjs", import.meta.url).href);
   return (await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"))).default;
 }
 async function invoke(nutrition, candidates) {

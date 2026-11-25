@@ -55,6 +55,8 @@ const foodAnalysisSchema = {
   properties: {
     ...transcriptionProperties,
     package_quantity: { type: ["string", "null"] },
+    allergens: { type: ["string", "null"] },
+    traces: { type: ["string", "null"] },
     ingredients: {
       type: "array",
       items: { type: "string" },
@@ -110,6 +112,8 @@ const foodAnalysisSchema = {
     "product_category",
     "package_quantity",
     "nutrition",
+    "allergens",
+    "traces",
     "ingredients",
     "major_ingredients",
     "harmful_ingredients",
@@ -284,6 +288,7 @@ IMPORTANT DATA RULES:
 - Do NOT estimate or guess nutrition numbers.
 - If a nutrition value cannot be read confidently, return null.
 - If the package has multiple nutrition panels, use the panel that is clearly associated with the product.
+- Transcribe explicit Contains statements in allergens and May contain or shared-equipment warnings in traces. Return null when unavailable.
 - "ingredients" should contain only ingredients that can be read from the image.
 - For major ingredients, only provide percentage when the percentage is explicitly visible.
 - Only provide amount_g_per_serving when it is explicitly stated or can be directly calculated from a visible percentage and serving size.

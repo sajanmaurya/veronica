@@ -52,18 +52,6 @@ function isUnknown(value) {
   return !text || text === "unknown" || text === "n/a" || text === "null";
 }
 
-function nutritionCount(nutrition) {
-  return [
-    nutrition.calories,
-    nutrition.total_fat_g,
-    nutrition.saturated_fat_g,
-    nutrition.carbohydrates_g,
-    nutrition.total_sugar_g,
-    nutrition.protein_g,
-    nutrition.sodium_mg,
-  ].filter((value) => value != null).length;
-}
-
 function nutritionToProductShape(nutrition) {
   if (!nutrition) return {};
 
@@ -235,7 +223,7 @@ export default async function handler(req, res) {
           : offIngredients.length
           ? "open_food_facts"
           : "unavailable",
-        nutrition: offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
+        nutrition: offValidation.status === "verified"
           ? "open_food_facts"
           : "unavailable",
         quantity: !isUnknown(product.quantity)
@@ -260,7 +248,7 @@ export default async function handler(req, res) {
       ? "open_food_facts"
       : "unavailable";
 
-    const nutritionSource = offValidation.status === "verified" && nutritionCount(offNutrition) >= 3
+    const nutritionSource = offValidation.status === "verified"
       ? "open_food_facts"
       : "unavailable";
 
@@ -294,6 +282,8 @@ export default async function handler(req, res) {
           quantitySource === "open_food_facts",
         ingredients,
         ingredients_source: ingredientSource,
+        allergens: product.allergens || null,
+        traces: product.traces || null,
         nutrition: offValidation.nutrition,
         nutrition_source: nutritionSource,
         nutrition_validation: {
@@ -309,7 +299,7 @@ export default async function handler(req, res) {
               : offValidation.issues.length
               ? `Open Food Facts data failed validation: ${offValidation.issues.join("; ")}. Scan the package label to verify.`
               : "Nutrition could not be verified from the barcode database or web fallback.",
-          basis: "per_100g",
+          basis: offNutrition.label_basis,
           issues: offValidation.issues,
           corrected_fields: offValidation.corrected_fields,
         },

@@ -601,6 +601,8 @@ const BarcodeScanning = () => {
               }
             : {}),
           ingredients: nextIngredients,
+          allergens: scan.allergens || current.allergens,
+          traces: scan.traces || current.traces,
           ingredients_source: ingredientsSource,
           nutrition: nextNutrition,
           nutrition_source: nutritionSource,

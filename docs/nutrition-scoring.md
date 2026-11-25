@@ -1,9 +1,8 @@
-# Veronica nutrition scoring — review release 0.1.0
+# Veronica nutrition scoring — release 0.4.0
 
 Runnable, dependency-free JavaScript ES module. No AI calls or network requests.
 This is a review implementation of published Nutri-Score 2023 numerical rules,
 not a newly validated scientific method or an official certification.
-No repository files were changed or pushed.
 
 ## Run
 
@@ -80,10 +79,15 @@ reviewed mapping upstream; unknown presence withholds the beverage score.
 
 - scored: exact rawScore and grade, except the water exception has grade A
   with rawScore null because its grade is assigned directly.
-- grade_only: missing favourable values exist, but a conservative interval
-  falls entirely in one grade. rawScore remains null.
-- insufficient_data: a required unfavourable input is missing, category or
-  eligibility is unresolved, or the possible score interval crosses grades.
+- `grade_only` means all possible scores give the same confirmed letter.
+- `insufficient_data` means the full grade is unresolved. If the category and
+  units are valid and at least one measured scoring component applies, Veronica
+  returns a separate `partialRating`. It sums the available penalty points,
+  subtracts the available favourable points, and applies the category thresholds
+  to that subtotal. For protein, it uses the penalty subtotal to decide eligibility.
+  The partial result includes the components used and the possible final grade
+  range. Missing nutrients stay null. An unrecognized category, an empty panel,
+  or conflicting quantities cannot produce this rating.
 - invalid_input: malformed numbers, wrong basis or contradictory values.
 - not_applicable: explicit ineligibility.
 

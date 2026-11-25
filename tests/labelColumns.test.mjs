@@ -331,3 +331,17 @@ test("rejects pack-only, substituted quantities, and non-calorie unitless values
   const review = { column: usContainer, basis: "per_serving", serving_size: "32g" };
   assert.equal(analyzeLabelColumns(snack, usPanel, review).nutrition_score.grade, null);
 });
+
+test("a partial photo and a manually checked serving use only measured nutrition", () => {
+  const column = { heading: "Per serving", total_sugar_g: "8 g" };
+  const panel = { serving_size: "20 g", columns: [column] };
+  const scans = [analyzeLabelColumns(chocolate, panel), analyzeLabelColumns(chocolate, panel, {
+    column, basis: "per_serving", serving_size: "20 g"
+  })];
+  for (const scan of scans) {
+    assert.equal(scan.nutrition_score.partialRating.grade, "D");
+    assert.equal(scan.nutrition_score.grade, null);
+    assert.equal(scan.nutrition_score.normalized.sugarsG, 40);
+    assert.equal(scan.nutrition_score.normalized.saltG, null);
+  }
+});
